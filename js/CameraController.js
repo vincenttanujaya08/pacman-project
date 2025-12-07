@@ -68,6 +68,58 @@ export default class CameraController {
     console.log("   Scroll - Zoom");
   }
 
+  // ✅ Set exact camera position without damping interference
+  setExactPosition(pos, lookAt) {
+    // Temporarily disable damping
+    const wasDamping = this.freeControls.enableDamping;
+    this.freeControls.enableDamping = false;
+
+    // Set target first
+    if (lookAt) {
+      this.freeControls.target.set(lookAt.x, lookAt.y, lookAt.z);
+    }
+
+    // Set position
+    this.camera.position.set(pos.x, pos.y, pos.z);
+
+    // Force update multiple times to stabilize
+    this.freeControls.update();
+    this.freeControls.update();
+
+    // ✅ Measure drift and compensate
+    const drift = {
+      x: pos.x - this.camera.position.x,
+      y: pos.y - this.camera.position.y,
+      z: pos.z - this.camera.position.z,
+    };
+
+    // Apply compensation
+    this.camera.position.set(pos.x + drift.x, pos.y + drift.y, pos.z + drift.z);
+
+    // Final update
+    this.freeControls.update();
+
+    // Re-enable damping after a frame
+    setTimeout(() => {
+      this.freeControls.enableDamping = wasDamping;
+    }, 100);
+
+    console.log(
+      `✅ Camera position: (${this.camera.position.x.toFixed(
+        2
+      )}, ${this.camera.position.y.toFixed(
+        2
+      )}, ${this.camera.position.z.toFixed(2)})`
+    );
+    if (drift.x !== 0 || drift.y !== 0 || drift.z !== 0) {
+      console.log(
+        `   Drift compensated: (${drift.x.toFixed(2)}, ${drift.y.toFixed(
+          2
+        )}, ${drift.z.toFixed(2)})`
+      );
+    }
+  }
+
   disableFreeMode() {
     if (!this.freeControls) return;
 

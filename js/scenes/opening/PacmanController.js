@@ -17,12 +17,12 @@ export default class PacmanController {
         from: { x: 0, y: 0, z: 6.5 },
         to: { x: 60, y: 0, z: 6.5 },
         duration: 3000, // 3 seconds
-        rotation: 0, // Face +X direction
+        rotation: Math.PI / 2, // Face +X direction
       },
       {
         type: "rotate",
-        from: -Math.PI / 2, // Current rotation
-        to: -Math.PI, // Rotate -90° to face -Z
+        from: Math.PI / 2, // Current rotation
+        to: Math.PI, // Rotate -90° to face -Z
         duration: 500, // 0.5 seconds
       },
       {
@@ -30,7 +30,7 @@ export default class PacmanController {
         from: { x: 60, y: 0, z: 6.5 },
         to: { x: 60, y: 0, z: -80 },
         duration: 4000, // 4 seconds
-        rotation: -Math.PI / 2, // Face -Z direction
+        // Face -Z direction
       },
     ];
   }

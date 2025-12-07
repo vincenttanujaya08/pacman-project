@@ -6,6 +6,8 @@ import config from "./config.js";
 import RainEffect from "./RainEffect.js";
 import PacmanController from "./PacmanController.js";
 
+import LogoEffect from "./LogoEffect.js";
+
 export default class OpeningScene extends BaseScene {
   constructor(name, renderer, camera) {
     super(name, renderer, camera);
@@ -30,6 +32,7 @@ export default class OpeningScene extends BaseScene {
 
     // Effects
     this.rainEffect = null;
+    this.logoEffect = null; // ✅ Logo
 
     // Setup mode (for adjusting)
     this.setupMode = true;
@@ -135,12 +138,34 @@ export default class OpeningScene extends BaseScene {
       this.rainEffect.init();
     }
 
-    // Setup camera
-    this.camera.position.set(
-      this.config.camera.initial.x,
-      this.config.camera.initial.y,
-      this.config.camera.initial.z
-    );
+    // ✅ Setup Logo Effect (gets eaten by Pacman)
+    if (this.config.logo) {
+      this.logoEffect = new LogoEffect(this.scene, this.config.logo);
+      await this.logoEffect.init();
+      console.log("✅ Logo effect ready");
+    }
+
+    // Setup camera - use exact position method to avoid damping drift
+    const app = window.app;
+    if (app && app.cameraController) {
+      app.cameraController.setExactPosition(
+        this.config.camera.initial,
+        this.config.camera.lookAt
+      );
+    } else {
+      // Fallback if app not available yet
+      this.camera.position.set(
+        this.config.camera.initial.x,
+        this.config.camera.initial.y,
+        this.config.camera.initial.z
+      );
+
+      this.camera.lookAt(
+        this.config.camera.lookAt.x,
+        this.config.camera.lookAt.y,
+        this.config.camera.lookAt.z
+      );
+    }
 
     // Create info display
     this.createInfoDisplay();
@@ -284,7 +309,7 @@ export default class OpeningScene extends BaseScene {
         position: new THREE.Vector3(pos.x, 0, pos.z),
         triggerRadius: 15, // ✅ Collision detection radius
         isOn: false,
-        targetIntensity: 2.5,
+        targetIntensity: 0.8, // ✅ REDUCED from 2.5 to 0.8 (lebih redup!)
         index: index,
       });
 
@@ -387,6 +412,10 @@ export default class OpeningScene extends BaseScene {
           this.pacmanController.reset();
           // Reset lights too
           this.resetCinematicLights();
+          // ✅ Reset logo too
+          if (this.logoEffect) {
+            this.logoEffect.reset();
+          }
         }
       }
     };
@@ -537,6 +566,11 @@ export default class OpeningScene extends BaseScene {
       this.rainEffect.update(deltaTime);
     }
 
+    // ✅ Update logo effect (pass Pacman position for collision)
+    if (this.logoEffect && this.pacmanModel) {
+      this.logoEffect.update(deltaTime, this.pacmanModel.position);
+    }
+
     // ✅ Update Cinematic Lighting System
     if (
       this.pacmanModel &&
@@ -569,18 +603,19 @@ export default class OpeningScene extends BaseScene {
     // ============================================
     // B) PROGRESSIVE BRIGHTNESS (based on progress)
     // ============================================
-    const progress = this.pacmanController.getProgress();
+    // ⚠️ DISABLED - Keep scene dark
+    // const progress = this.pacmanController.getProgress();
 
-    // Gradually increase ambient and main lights
-    const targetAmbient = 0.1 + progress * 0.3; // 0.1 → 0.4
-    const targetMain = 0.2 + progress * 0.8; // 0.2 → 1.0
-    const targetFill = 0.2 + progress * 0.4; // 0.2 → 0.6
+    // // Gradually increase ambient and main lights
+    // const targetAmbient = 0.1 + progress * 0.3; // 0.1 → 0.4
+    // const targetMain = 0.2 + progress * 0.8; // 0.2 → 1.0
+    // const targetFill = 0.2 + progress * 0.4; // 0.2 → 0.6
 
-    // Smooth lerp
-    this.ambientLight.intensity +=
-      (targetAmbient - this.ambientLight.intensity) * 0.05;
-    this.mainLight.intensity += (targetMain - this.mainLight.intensity) * 0.05;
-    this.fillLight.intensity += (targetFill - this.fillLight.intensity) * 0.05;
+    // // Smooth lerp
+    // this.ambientLight.intensity +=
+    //   (targetAmbient - this.ambientLight.intensity) * 0.05;
+    // this.mainLight.intensity += (targetMain - this.mainLight.intensity) * 0.05;
+    // this.fillLight.intensity += (targetFill - this.fillLight.intensity) * 0.05;
 
     // ============================================
     // C) STREET LIGHTS AUTO-ON (Collision Detection)
@@ -634,6 +669,12 @@ export default class OpeningScene extends BaseScene {
     if (this.rainEffect) {
       this.rainEffect.dispose();
       this.rainEffect = null;
+    }
+
+    // ✅ Dispose logo effect
+    if (this.logoEffect) {
+      this.logoEffect.dispose();
+      this.logoEffect = null;
     }
 
     // ✅ Dispose cinematic lights

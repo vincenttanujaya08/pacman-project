@@ -17,7 +17,7 @@ class App {
 
     // State
     this.isRunning = false;
-    this.currentMode = "cinematic"; // 'cinematic' or 'free'
+    this.currentMode = "free"; // ✅ Always free mode
 
     // DOM elements
     this.canvasContainer = null;
@@ -102,10 +102,10 @@ class App {
       this.renderer.domElement
     );
 
-    // Start in cinematic mode
-    this.cameraController.setMode("cinematic");
+    // ✅ Always start in FREE mode
+    this.cameraController.setMode("free");
 
-    console.log("Camera controller setup complete");
+    console.log("Camera controller setup complete (FREE MODE)");
   }
 
   setupSceneManager() {

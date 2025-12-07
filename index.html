@@ -15,8 +15,8 @@
 
         <!-- UI Controls -->
         <div id="controls">
-            <!-- Mode Toggle -->
-            <div class="control-group">
+            <!-- Mode Toggle - HIDDEN (always free mode) -->
+            <div class="control-group" style="display: none;">
                 <button id="toggleMode" class="btn-mode">
                     <span id="modeText">Switch to Free Mode</span>
                 </button>
@@ -31,17 +31,17 @@
                 <button class="btn-scene" data-scene="ending">Ending</button>
             </div>
 
-            <!-- Free Mode Instructions -->
-            <div id="freeInstructions" class="instructions hidden">
-                <p><strong>Free Camera Controls:</strong></p>
+            <!-- Free Mode Instructions - ALWAYS VISIBLE -->
+            <div id="freeInstructions" class="instructions">
+                <p><strong>🎮 Camera Controls:</strong></p>
                 <p>WASD - Move | Mouse Drag - Rotate | Scroll - Zoom</p>
-                <p>Q - Down | E - Up</p>
+                <p>Q - Down | E - Up | Shift - Sprint</p>
             </div>
 
             <!-- Setup Instructions -->
             <div id="setupInstructions" class="instructions">
-                <p><strong>🎬 Setup Mode:</strong></p>
-                <p>1-4: Scale | 5-0: Lights | F: Free Mode | P: Print</p>
+                <p><strong>🎬 Animation:</strong></p>
+                <p>SPACE: Start | X: Stop | C: Reset</p>
             </div>
         </div>
 

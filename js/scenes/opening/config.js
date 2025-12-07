@@ -55,8 +55,14 @@ export default {
 
   // Camera
   camera: {
-    initial: { x: 0, y: 30, z: 80 },
-    lookAt: { x: 0, y: 0, z: 0 },
+    initial: { x: 60.19, y: 3.79, z: -82.04 },
+    lookAt: { x: 60, y: 0, z: 0 },
+  },
+
+  logo: {
+    position: { x: 60, y: 10, z: -50 }, // In middle of first path
+    fadeInDuration: 5000, // 2 seconds fade in
+    eatDistance: 8, // Distance at which Pacman eats it
   },
 
   // Animation timing (for later)
