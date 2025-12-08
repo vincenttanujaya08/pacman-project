@@ -285,7 +285,7 @@ class App {
     // Update scene manager
     this.sceneManager.update(clampedDelta);
 
-    // ✅ Update position display
+    // ✅ Update position display (with rotation)
     this.updatePositionDisplay();
 
     // Render
@@ -302,6 +302,29 @@ class App {
     if (posXElem) posXElem.textContent = pos.x.toFixed(2);
     if (posYElem) posYElem.textContent = pos.y.toFixed(2);
     if (posZElem) posZElem.textContent = pos.z.toFixed(2);
+
+    // ✅ Show yaw & pitch rotation (for FPS mode adjustment)
+    const rotYawElem = document.getElementById("rotYaw");
+    const rotPitchElem = document.getElementById("rotPitch");
+
+    if (rotYawElem && rotPitchElem) {
+      // Get current scene
+      const currentScene = this.sceneManager.getCurrentScene();
+
+      // If in Scene 2 and has cameraMode, show FPS rotation
+      if (
+        currentScene &&
+        currentScene.name === "scene2" &&
+        currentScene.cameraMode
+      ) {
+        const cameraMode = currentScene.cameraMode;
+        rotYawElem.textContent = cameraMode.fps.yaw.toFixed(3);
+        rotPitchElem.textContent = cameraMode.fps.pitch.toFixed(3);
+      } else {
+        rotYawElem.textContent = "-";
+        rotPitchElem.textContent = "-";
+      }
+    }
   }
 
   // ========== CLEANUP ==========

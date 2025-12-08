@@ -5,11 +5,13 @@ export default {
   // Model paths
   models: {
     forest: "assets/models/forest.glb",
+    ghost: "assets/models/red_ghost.glb", // ✅ Ghost model
   },
 
   // Initial scales
   scale: {
     forest: { x: 100, y: 100, z: 100 },
+    ghost: { x: 3, y: 3, z: 3 }, // ✅ Ghost scale
   },
 
   // Initial positions
@@ -48,8 +50,9 @@ export default {
 
   // Camera
   camera: {
-    initial: { x: 7.76, y: 7550.23, z: 228.71 },
-    lookAt: { x: 0, y: 0, z: 0 },
+    initial: { x: -8.84, y: 7542.8, z: 97.28 }, // ✅ Absolute start position
+    rotation: { yaw: 0.136, pitch: 0.058 },
+    lookAt: { x: -8.84, y: 7542.8, z: 100 }, // Look forward
   },
 
   // Background
@@ -57,12 +60,18 @@ export default {
     color: 0x000011,
   },
 
-  // ✅ Light Particles (NEW!)
+  // ✅ Light Particles
   lightParticles: {
     enabled: true,
     particleCount: 300,
     area: { x: 300, y: 0, z: 300 },
     height: -10,
     size: 1,
+  },
+
+  // ✅ Ghost configuration (absolute position)
+  ghost: {
+    position: { x: 39.16, y: 7538.8, z: 109.97 }, // Absolute spawn position
+    rotation: { x: 0, y: -Math.PI / 2, z: 0 }, // Initial rotation
   },
 };

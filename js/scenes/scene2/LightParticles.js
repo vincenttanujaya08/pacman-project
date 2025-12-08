@@ -1,4 +1,5 @@
 // Fireflies with mixed solid + glow types, independent twinkle + drifting
+// ✅ WITH COLOR CHANGE SUPPORT for apocalypse mode
 
 export default class LightParticles {
   constructor(scene, camera, config) {
@@ -90,7 +91,7 @@ export default class LightParticles {
 
       const spriteMaterial = new THREE.SpriteMaterial({
         map: isGlow ? glowTex : solidTex,
-        color: 0x421212,
+        color: 0xffffb4, // Default: warm white/yellow
         transparent: isGlow ? true : false,
         opacity: 1.0,
         depthWrite: !isGlow,
@@ -125,6 +126,14 @@ export default class LightParticles {
     }
 
     console.log("✨ LightParticles initialized (Mixed Glow + Solid)");
+  }
+
+  // ✅ NEW: Change color of all fireflies (for apocalypse mode)
+  setColor(hexColor) {
+    for (const f of this.fireflies) {
+      f.material.color.setHex(hexColor);
+    }
+    console.log(`✨ Fireflies color changed to: #${hexColor.toString(16)}`);
   }
 
   update(deltaTime) {
