@@ -603,16 +603,20 @@ export default class OpeningScene extends BaseScene {
     if (this.logoEffect) {
       this.logoEffect.update(deltaTime);
 
-      // ✅ Check if zoom complete - trigger transition to next scene
+      // ⭐ UBAH BAGIAN INI
       if (this.logoEffect.zoomComplete) {
-        console.log("🎬 Zoom complete! Transitioning to next scene...");
+        console.log("🎬 White fade complete! Disposing models...");
         this.logoEffect.zoomComplete = false; // Prevent multiple triggers
 
-        // TODO: Transition to next scene
-        // Example:
-        // setTimeout(() => {
-        //   window.app.sceneManager.switchTo("nextScene", "fade");
-        // }, 500);
+        // ✅ DISPOSE ALL MODELS SEBELUM TRANSITION
+        this.disposeAllModels();
+
+        // ✅ TRANSITION KE SCENE BERIKUTNYA
+        setTimeout(() => {
+          console.log("🎬 Transitioning to next scene...");
+          // TODO: Ganti "nextScene" dengan nama scene kamu
+          // window.app.sceneManager.switchTo("scene2", "instant");
+        }, 500);
       }
     }
 
@@ -654,6 +658,84 @@ export default class OpeningScene extends BaseScene {
         }
       }
     });
+  }
+
+  disposeAllModels() {
+    console.log("🗑️ Disposing Opening Scene models...");
+
+    // Dispose City Model
+    if (this.cityModel) {
+      this.cityModel.traverse((child) => {
+        if (child.isMesh) {
+          if (child.geometry) child.geometry.dispose();
+          if (child.material) {
+            if (Array.isArray(child.material)) {
+              child.material.forEach((mat) => {
+                if (mat.map) mat.map.dispose();
+                mat.dispose();
+              });
+            } else {
+              if (child.material.map) child.material.map.dispose();
+              child.material.dispose();
+            }
+          }
+        }
+      });
+      this.scene.remove(this.cityModel);
+      this.cityModel = null;
+      console.log("  ✅ City model disposed");
+    }
+
+    // Dispose Pacman Model
+    if (this.pacmanModel) {
+      this.pacmanModel.traverse((child) => {
+        if (child.isMesh) {
+          if (child.geometry) child.geometry.dispose();
+          if (child.material) {
+            if (Array.isArray(child.material)) {
+              child.material.forEach((mat) => {
+                if (mat.map) mat.map.dispose();
+                mat.dispose();
+              });
+            } else {
+              if (child.material.map) child.material.map.dispose();
+              child.material.dispose();
+            }
+          }
+        }
+      });
+      this.scene.remove(this.pacmanModel);
+      this.pacmanModel = null;
+      console.log("  ✅ Pacman model disposed");
+    }
+
+    // Dispose Rain Effect
+    if (this.rainEffect) {
+      this.rainEffect.dispose();
+      this.rainEffect = null;
+      console.log("  ✅ Rain effect disposed");
+    }
+
+    // Dispose Logo & Black Hole
+    if (this.logoEffect) {
+      this.logoEffect.dispose();
+      this.logoEffect = null;
+      console.log("  ✅ Logo & Black hole disposed");
+    }
+
+    // Dispose Lights
+    if (this.pacmanSpotlight) {
+      this.scene.remove(this.pacmanSpotlight);
+      this.scene.remove(this.pacmanSpotlight.target);
+      this.pacmanSpotlight = null;
+    }
+
+    this.streetLights.forEach((sl) => {
+      this.scene.remove(sl.light);
+    });
+    this.streetLights = [];
+
+    console.log("✅ All Opening Scene models disposed!");
   }
 
   exit() {

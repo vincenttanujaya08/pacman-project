@@ -148,13 +148,32 @@ class App {
   async loadScenes() {
     console.log("Loading scenes...");
 
-    this.updateLoadingProgress(0, "Loading scenes...");
+    this.updateLoadingProgress(0, "Loading Opening Scene...");
 
-    // Import scenes (when they're created)
-    // For now, we'll create a simple test scene
-    await this.loadTestScene();
+    // ✅ Load Opening Scene
+    const OpeningScene = await import("./scenes/opening/OpeningScene.js").then(
+      (m) => m.default
+    );
+    const openingScene = new OpeningScene(
+      "opening",
+      this.renderer,
+      this.camera
+    );
+    await this.sceneManager.addScene("opening", openingScene);
 
-    this.updateLoadingProgress(100, "Ready!");
+    this.updateLoadingProgress(50, "Loading Scene 2 (Forest)...");
+
+    // // ✅ Load Scene 2 (Forest)
+    // const Scene2 = await import("./scenes/scene2/scene2.js").then(
+    //   (m) => m.default
+    // );
+    // const scene2 = new Scene2("scene2", this.renderer, this.camera);
+    // await this.sceneManager.addScene("scene2", scene2);
+
+    // this.updateLoadingProgress(100, "Ready!");
+
+    // // Start with opening scene
+    await this.sceneManager.switchTo("opening", "instant");
   }
 
   async loadTestScene() {

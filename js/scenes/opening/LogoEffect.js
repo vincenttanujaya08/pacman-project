@@ -267,13 +267,42 @@ export default class LogoEffect {
     this.cameraController.moveTo(
       new THREE.Vector3(blackHolePos.x, blackHolePos.y, blackHolePos.z + 0), // Close to black hole
       blackHolePos,
-      5000, // 1 second fast zoom
+      3000, // 3 seconds zoom
       this.cameraController.easeInCubic,
       () => {
-        console.log("✅ Camera zoom complete!");
-        this.zoomComplete = true;
+        console.log("✅ Camera zoom complete! Starting white fade...");
+        this.startWhiteFade(); // ⭐ TAMBAH INI
       }
     );
+  }
+
+  // ⭐ TAMBAH FUNCTION BARU INI (dibawah startCameraZoom)
+  startWhiteFade() {
+    const overlay = document.createElement("div");
+    overlay.id = "white-fade";
+    overlay.style.position = "fixed";
+    overlay.style.top = "0";
+    overlay.style.left = "0";
+    overlay.style.width = "100%";
+    overlay.style.height = "100%";
+    overlay.style.backgroundColor = "white";
+    overlay.style.opacity = "0";
+    overlay.style.transition = "opacity 2000ms ease"; // 2 detik fade
+    overlay.style.pointerEvents = "none";
+    overlay.style.zIndex = "999";
+
+    document.body.appendChild(overlay);
+
+    // Trigger fade
+    setTimeout(() => {
+      overlay.style.opacity = "1";
+    }, 10);
+
+    // Mark zoom complete after fade
+    setTimeout(() => {
+      this.zoomComplete = true;
+      console.log("✅ White fade complete! Ready for next scene.");
+    }, 2100); // 2.1 detik (sedikit lebih lama dari fade)
   }
 
   reset() {
@@ -306,6 +335,12 @@ export default class LogoEffect {
           child.material.opacity = 0;
         }
       });
+    }
+
+    // ⭐ TAMBAH INI - Remove white fade overlay
+    const overlay = document.getElementById("white-fade");
+    if (overlay) {
+      overlay.remove();
     }
 
     console.log("🔄 Logo & Black hole reset");
@@ -346,5 +381,10 @@ export default class LogoEffect {
       this.blackHoleMixer.stopAllAction();
       this.blackHoleMixer = null;
     }
+  }
+  // ⭐ TAMBAH INI - Remove white fade overlay
+  overlay = document.getElementById("white-fade");
+  if(overlay) {
+    overlay.remove();
   }
 }
