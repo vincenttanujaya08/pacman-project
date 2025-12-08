@@ -281,9 +281,7 @@ class App {
 
     // Update camera controller
     const currentScene = this.sceneManager.getCurrentScene();
-    if (currentScene && currentScene.name === "scene2") {
-      this.cameraController.update(clampedDelta);
-    }
+    this.cameraController.update(clampedDelta);
 
     // Update scene manager
     this.sceneManager.update(clampedDelta);

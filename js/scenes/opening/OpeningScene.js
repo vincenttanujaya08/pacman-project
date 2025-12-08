@@ -364,7 +364,7 @@ export default class OpeningScene extends BaseScene {
         this.toggleFreeMode();
       }
 
-      if (key === " ") {
+      if (key === "b" || key === "B") {
         if (this.pacmanController) {
           this.pacmanController.start();
           console.log("🎬 Animation sequence started!");
