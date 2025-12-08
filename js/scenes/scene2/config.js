@@ -1,5 +1,5 @@
 // js/scenes/scene2/config.js
-// Configuration for Scene 2 - Forest Environment
+// Configuration for Scene 2 (Forest)
 
 export default {
   // Model paths
@@ -7,9 +7,9 @@ export default {
     forest: "assets/models/forest.glb",
   },
 
-  // Initial scales (adjust dengan keyboard [1][2])
+  // Initial scales (adjust after testing)
   scale: {
-    forest: { x: 1, y: 1, z: 1 },
+    forest: { x: 100, y: 100, z: 100 },
   },
 
   // Initial positions
@@ -25,24 +25,35 @@ export default {
   // Lighting
   lighting: {
     ambient: {
-      color: 0x404040, // Soft gray
-      intensity: 0.5,
-    },
-    main: {
       color: 0xffffff, // White
-      intensity: 1.0,
-      position: { x: 50, y: 100, z: 50 },
+      intensity: 0.6,
+    },
+    sun: {
+      color: 0xffffff, // White sunlight
+      intensity: 0.8,
+      position: { x: 10, y: 20, z: 10 },
     },
     fill: {
-      color: 0x8888ff, // Soft blue
+      color: 0xaaccff, // Soft blue fill
       intensity: 0.3,
-      position: { x: -50, y: 50, z: -50 },
+      position: { x: -5, y: 10, z: -5 },
+    },
+    fog: {
+      enabled: false,
+      color: 0x87ceeb,
+      near: 10,
+      far: 100,
     },
   },
 
   // Camera
   camera: {
-    initial: { x: 0, y: 5, z: 20 }, // Default dari depan
+    initial: { x: 0, y: 2, z: 10 },
     lookAt: { x: 0, y: 0, z: 0 },
+  },
+
+  // Background
+  background: {
+    color: 0x87ceeb, // Sky blue
   },
 };

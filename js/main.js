@@ -148,9 +148,9 @@ class App {
   async loadScenes() {
     console.log("Loading scenes...");
 
-    this.updateLoadingProgress(0, "Loading Opening Scene...");
+    this.updateLoadingProgress(0, "Loading scenes...");
 
-    // ✅ Load Opening Scene
+    // Load Opening Scene
     const OpeningScene = await import("./scenes/opening/OpeningScene.js").then(
       (m) => m.default
     );
@@ -161,32 +161,19 @@ class App {
     );
     await this.sceneManager.addScene("opening", openingScene);
 
-    this.updateLoadingProgress(50, "Loading Scene 2 (Forest)...");
+    this.updateLoadingProgress(50, "Loading scene 2...");
 
-    // // ✅ Load Scene 2 (Forest)
-    // const Scene2 = await import("./scenes/scene2/scene2.js").then(
-    //   (m) => m.default
-    // );
-    // const scene2 = new Scene2("scene2", this.renderer, this.camera);
-    // await this.sceneManager.addScene("scene2", scene2);
-
-    // this.updateLoadingProgress(100, "Ready!");
-
-    // // Start with opening scene
-    await this.sceneManager.switchTo("opening", "instant");
-  }
-
-  async loadTestScene() {
-    // Load Opening Scene for setup/testing
-    const OpeningScene = await import("./scenes/opening/OpeningScene.js").then(
+    // ✅ Load Scene 2 (Ghosts/next scene)
+    // TODO: Ganti dengan scene 2 kamu yang sebenarnya
+    // Untuk sementara pakai TestScene dulu
+    // Load Scene 2 module (replace with your actual scene file)
+    const Scene2 = await import("./scenes/scene2/scene2.js").then(
       (m) => m.default
     );
-    const openingScene = new OpeningScene(
-      "opening",
-      this.renderer,
-      this.camera
-    );
-    await this.sceneManager.addScene("opening", openingScene);
+    const scene2 = new Scene2("ghosts", this.renderer, this.camera);
+    await this.sceneManager.addScene("ghosts", scene2);
+
+    this.updateLoadingProgress(100, "Ready!");
 
     // Start with opening scene
     await this.sceneManager.switchTo("opening", "instant");

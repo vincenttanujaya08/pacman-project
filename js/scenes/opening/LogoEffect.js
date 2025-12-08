@@ -267,42 +267,47 @@ export default class LogoEffect {
     this.cameraController.moveTo(
       new THREE.Vector3(blackHolePos.x, blackHolePos.y, blackHolePos.z + 0), // Close to black hole
       blackHolePos,
-      3000, // 3 seconds zoom
+      2000, // 2 second zoom
       this.cameraController.easeInCubic,
       () => {
-        console.log("✅ Camera zoom complete! Starting white fade...");
-        this.startWhiteFade(); // ⭐ TAMBAH INI
+        console.log("✅ Camera zoom complete! Starting white flash...");
+        this.startWhiteFlash();
       }
     );
   }
 
-  // ⭐ TAMBAH FUNCTION BARU INI (dibawah startCameraZoom)
-  startWhiteFade() {
-    const overlay = document.createElement("div");
-    overlay.id = "white-fade";
-    overlay.style.position = "fixed";
-    overlay.style.top = "0";
-    overlay.style.left = "0";
-    overlay.style.width = "100%";
-    overlay.style.height = "100%";
-    overlay.style.backgroundColor = "white";
-    overlay.style.opacity = "0";
-    overlay.style.transition = "opacity 2000ms ease"; // 2 detik fade
-    overlay.style.pointerEvents = "none";
-    overlay.style.zIndex = "999";
+  startWhiteFlash() {
+    // Create white flash overlay
+    const flash = document.createElement("div");
+    flash.style.position = "fixed";
+    flash.style.top = "0";
+    flash.style.left = "0";
+    flash.style.width = "100%";
+    flash.style.height = "100%";
+    flash.style.backgroundColor = "white";
+    flash.style.opacity = "0";
+    flash.style.transition = "opacity 500ms ease";
+    flash.style.pointerEvents = "none";
+    flash.style.zIndex = "9999";
+    flash.id = "white-flash";
 
-    document.body.appendChild(overlay);
+    document.body.appendChild(flash);
 
-    // Trigger fade
+    // Fade in white
     setTimeout(() => {
-      overlay.style.opacity = "1";
+      flash.style.opacity = "1";
     }, 10);
 
-    // Mark zoom complete after fade
+    // After white flash, trigger transition
     setTimeout(() => {
-      this.zoomComplete = true;
-      console.log("✅ White fade complete! Ready for next scene.");
-    }, 2100); // 2.1 detik (sedikit lebih lama dari fade)
+      console.log("✅ White flash complete! Ready to transition...");
+      this.zoomComplete = true; // Signal that we're ready to transition
+
+      // Remove flash after a moment
+      setTimeout(() => {
+        flash.remove();
+      }, 500);
+    }, 1000); // White flash duration
   }
 
   reset() {
@@ -335,12 +340,6 @@ export default class LogoEffect {
           child.material.opacity = 0;
         }
       });
-    }
-
-    // ⭐ TAMBAH INI - Remove white fade overlay
-    const overlay = document.getElementById("white-fade");
-    if (overlay) {
-      overlay.remove();
     }
 
     console.log("🔄 Logo & Black hole reset");
@@ -381,10 +380,5 @@ export default class LogoEffect {
       this.blackHoleMixer.stopAllAction();
       this.blackHoleMixer = null;
     }
-  }
-  // ⭐ TAMBAH INI - Remove white fade overlay
-  overlay = document.getElementById("white-fade");
-  if(overlay) {
-    overlay.remove();
   }
 }

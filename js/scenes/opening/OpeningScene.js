@@ -43,6 +43,9 @@ export default class OpeningScene extends BaseScene {
     // For displaying info
     this.infoElement = null;
 
+    // ✅ Transition state
+    this.hasTransitioned = false;
+
     this.setupKeyboardControls();
   }
 
@@ -201,7 +204,8 @@ export default class OpeningScene extends BaseScene {
     console.log("  4. Black hole appears behind logo");
     console.log("  5. Logo gets sucked into black hole");
     console.log("  6. Camera zooms into black hole");
-    console.log("  7. Transition to next scene");
+    console.log("  7. White flash");
+    console.log("  8. Transition to next scene");
     console.log("");
     console.log("💡 TIP: Press SPACE to start!");
     console.log("========================================");
@@ -417,6 +421,9 @@ export default class OpeningScene extends BaseScene {
           if (this.logoEffect) {
             this.logoEffect.reset();
           }
+
+          // ✅ Reset transition flag
+          this.hasTransitioned = false;
         }
       }
     };
@@ -603,20 +610,16 @@ export default class OpeningScene extends BaseScene {
     if (this.logoEffect) {
       this.logoEffect.update(deltaTime);
 
-      // ⭐ UBAH BAGIAN INI
-      if (this.logoEffect.zoomComplete) {
-        console.log("🎬 White fade complete! Disposing models...");
-        this.logoEffect.zoomComplete = false; // Prevent multiple triggers
+      // ✅ Check if zoom complete - trigger transition to next scene
+      if (this.logoEffect.zoomComplete && !this.hasTransitioned) {
+        console.log("🎬 Zoom complete! Preparing transition to next scene...");
+        this.hasTransitioned = true; // Prevent multiple triggers
 
-        // ✅ DISPOSE ALL MODELS SEBELUM TRANSITION
-        this.disposeAllModels();
-
-        // ✅ TRANSITION KE SCENE BERIKUTNYA
+        // Dispose opening scene completely
         setTimeout(() => {
-          console.log("🎬 Transitioning to next scene...");
-          // TODO: Ganti "nextScene" dengan nama scene kamu
-          // window.app.sceneManager.switchTo("scene2", "instant");
-        }, 500);
+          this.disposeOpeningScene();
+          this.transitionToNextScene();
+        }, 1500); // Wait for white flash to complete
       }
     }
 
@@ -627,6 +630,72 @@ export default class OpeningScene extends BaseScene {
     ) {
       this.updateCinematicLighting();
     }
+  }
+
+  // ✅ NEW: Dispose all opening scene resources
+  disposeOpeningScene() {
+    console.log("🗑️ Disposing opening scene resources...");
+
+    // Hide and dispose city
+    if (this.cityModel) {
+      this.cityModel.visible = false;
+      this.scene.remove(this.cityModel);
+    }
+
+    // Hide and dispose pacman
+    if (this.pacmanModel) {
+      this.pacmanModel.visible = false;
+      this.scene.remove(this.pacmanModel);
+    }
+
+    // Dispose lights
+    if (this.ambientLight) this.scene.remove(this.ambientLight);
+    if (this.mainLight) this.scene.remove(this.mainLight);
+    if (this.fillLight) this.scene.remove(this.fillLight);
+    if (this.pacmanSpotlight) this.scene.remove(this.pacmanSpotlight);
+
+    this.streetLights.forEach((sl) => {
+      this.scene.remove(sl.light);
+    });
+
+    // Dispose effects
+    if (this.rainEffect) {
+      this.rainEffect.dispose();
+    }
+
+    if (this.logoEffect) {
+      this.logoEffect.dispose();
+    }
+
+    console.log("✅ Opening scene disposed");
+  }
+
+  // ✅ NEW: Transition to next scene
+  transitionToNextScene() {
+    console.log("🎬 Transitioning to next scene...");
+
+    const app = window.app;
+    if (!app || !app.sceneManager) {
+      console.error("❌ App or SceneManager not found!");
+      return;
+    }
+
+    // Check if scene 2 exists
+    const nextSceneName = "ghosts"; // Change this to your actual scene 2 name
+    const scene2 = app.sceneManager.getScene(nextSceneName);
+
+    if (!scene2) {
+      console.warn(
+        `⚠️ Scene "${nextSceneName}" not found. Add it to main.js first!`
+      );
+      console.log(
+        "💡 Create scene 2 first, then uncomment the transition code."
+      );
+      return;
+    }
+
+    // Perform transition
+    app.sceneManager.switchTo(nextSceneName, "fade");
   }
 
   updateCinematicLighting() {
@@ -658,84 +727,6 @@ export default class OpeningScene extends BaseScene {
         }
       }
     });
-  }
-
-  disposeAllModels() {
-    console.log("🗑️ Disposing Opening Scene models...");
-
-    // Dispose City Model
-    if (this.cityModel) {
-      this.cityModel.traverse((child) => {
-        if (child.isMesh) {
-          if (child.geometry) child.geometry.dispose();
-          if (child.material) {
-            if (Array.isArray(child.material)) {
-              child.material.forEach((mat) => {
-                if (mat.map) mat.map.dispose();
-                mat.dispose();
-              });
-            } else {
-              if (child.material.map) child.material.map.dispose();
-              child.material.dispose();
-            }
-          }
-        }
-      });
-      this.scene.remove(this.cityModel);
-      this.cityModel = null;
-      console.log("  ✅ City model disposed");
-    }
-
-    // Dispose Pacman Model
-    if (this.pacmanModel) {
-      this.pacmanModel.traverse((child) => {
-        if (child.isMesh) {
-          if (child.geometry) child.geometry.dispose();
-          if (child.material) {
-            if (Array.isArray(child.material)) {
-              child.material.forEach((mat) => {
-                if (mat.map) mat.map.dispose();
-                mat.dispose();
-              });
-            } else {
-              if (child.material.map) child.material.map.dispose();
-              child.material.dispose();
-            }
-          }
-        }
-      });
-      this.scene.remove(this.pacmanModel);
-      this.pacmanModel = null;
-      console.log("  ✅ Pacman model disposed");
-    }
-
-    // Dispose Rain Effect
-    if (this.rainEffect) {
-      this.rainEffect.dispose();
-      this.rainEffect = null;
-      console.log("  ✅ Rain effect disposed");
-    }
-
-    // Dispose Logo & Black Hole
-    if (this.logoEffect) {
-      this.logoEffect.dispose();
-      this.logoEffect = null;
-      console.log("  ✅ Logo & Black hole disposed");
-    }
-
-    // Dispose Lights
-    if (this.pacmanSpotlight) {
-      this.scene.remove(this.pacmanSpotlight);
-      this.scene.remove(this.pacmanSpotlight.target);
-      this.pacmanSpotlight = null;
-    }
-
-    this.streetLights.forEach((sl) => {
-      this.scene.remove(sl.light);
-    });
-    this.streetLights = [];
-
-    console.log("✅ All Opening Scene models disposed!");
   }
 
   exit() {

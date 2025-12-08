@@ -1,5 +1,5 @@
 // js/scenes/scene2/Scene2.js
-// Scene 2 - Forest Environment
+// Scene 2 - Forest (Complete version with config)
 
 import BaseScene from "../BaseScene.js";
 import config from "./config.js";
@@ -15,15 +15,16 @@ export default class Scene2 extends BaseScene {
 
     // Lights
     this.ambientLight = null;
-    this.mainLight = null;
+    this.sunLight = null;
     this.fillLight = null;
 
     // Setup mode
+    this.setupMode = true;
     this.currentScale = {
       forest: 1.0,
     };
 
-    // For displaying info
+    // Info display
     this.infoElement = null;
 
     this.setupKeyboardControls();
@@ -32,19 +33,29 @@ export default class Scene2 extends BaseScene {
   async init() {
     await super.init();
 
-    console.log(`[${this.name}] Loading forest model...`);
+    console.log(`[${this.name}] Loading models...`);
 
     // Remove default lights
     this.lights.forEach((light) => this.scene.remove(light));
     this.lights = [];
 
-    // ✅ BLACK BACKGROUND - HITAM PEKAT
-    this.scene.background = new THREE.Color(0x000000);
-    this.scene.fog = null; // No fog
+    // Setup background
+    this.scene.background = new THREE.Color(this.config.background.color);
 
-    // Load Forest Model
+    // Setup fog if enabled
+    if (this.config.lighting.fog.enabled) {
+      this.scene.fog = new THREE.Fog(
+        this.config.lighting.fog.color,
+        this.config.lighting.fog.near,
+        this.config.lighting.fog.far
+      );
+    }
+
+    // Setup lighting
+    this.setupLighting();
+
+    // Load Forest model
     try {
-      console.log("📦 Loading forest.glb...");
       const forestGltf = await this.loadModel(this.config.models.forest);
       this.forestModel = forestGltf.scene;
 
@@ -54,18 +65,19 @@ export default class Scene2 extends BaseScene {
         this.config.positions.forest.z
       );
 
-      this.forestModel.scale.set(
-        this.config.scale.forest.x,
-        this.config.scale.forest.y,
-        this.config.scale.forest.z
-      );
-
       this.forestModel.rotation.set(
         this.config.rotations.forest.x,
         this.config.rotations.forest.y,
         this.config.rotations.forest.z
       );
 
+      this.forestModel.scale.set(
+        this.config.scale.forest.x,
+        this.config.scale.forest.y,
+        this.config.scale.forest.z
+      );
+
+      // Enable shadows
       this.forestModel.traverse((child) => {
         if (child.isMesh) {
           child.castShadow = true;
@@ -74,72 +86,41 @@ export default class Scene2 extends BaseScene {
       });
 
       this.addObject(this.forestModel, "forest");
-      console.log("✅ Forest model loaded successfully!");
+      console.log("✅ Forest model loaded");
     } catch (error) {
-      console.error("❌ Error loading forest:", error);
+      console.error("❌ Error loading forest model:", error);
     }
 
-    // Setup Lighting
-    this.setupLighting();
-
-    // Setup camera
-    const app = window.app;
-    if (app && app.cameraController) {
-      // ✅ Switch to FREE mode for Scene 2
-      app.cameraController.setMode("free");
-
-      app.cameraController.setExactPosition(
-        this.config.camera.initial,
-        this.config.camera.lookAt
-      );
-
-      console.log("✅ Camera in FREE mode for Scene 2");
-    } else {
-      this.camera.position.set(
-        this.config.camera.initial.x,
-        this.config.camera.initial.y,
-        this.config.camera.initial.z
-      );
-
-      this.camera.lookAt(
-        this.config.camera.lookAt.x,
-        this.config.camera.lookAt.y,
-        this.config.camera.lookAt.z
-      );
-    }
+    // ✅ JANGAN set camera di init() - biarkan opening scene yang control
+    // Camera akan di-set di enter()
 
     // Create info display
     this.createInfoDisplay();
 
     console.log("");
     console.log("========================================");
-    console.log("🌲 SCENE 2 - FOREST ENVIRONMENT");
+    console.log("🌲 SCENE 2 - FOREST");
     console.log("========================================");
     console.log("");
-    console.log("📦 MODEL CONTROLS:");
+    console.log("📦 MODELS:");
     console.log("  [1] Forest scale -  [2] Forest scale +");
-    console.log("  [3] Rotate Y -      [4] Rotate Y +");
     console.log("");
-    console.log("💡 LIGHTING CONTROLS:");
+    console.log("💡 LIGHTING:");
     console.log("  [5] Ambient -       [6] Ambient +");
-    console.log("  [7] Main -          [8] Main +");
+    console.log("  [7] Sun -           [8] Sun +");
+    console.log("  [9] Fill -          [0] Fill +");
     console.log("");
     console.log("📋 OTHER:");
     console.log("  [P] Print current config");
     console.log("  [R] Reset to default");
-    console.log("");
-    console.log("🎮 CAMERA (FREE MODE):");
-    console.log("  WASD - Move");
-    console.log("  Mouse Drag - Rotate");
-    console.log("  Scroll - Zoom");
-    console.log("  Q - Down | E - Up");
-    console.log("  Shift - Sprint");
+    console.log("  [F] Toggle Free Mode");
     console.log("");
     console.log("========================================");
     console.log("");
   }
 
   setupLighting() {
+    // Ambient light
     this.ambientLight = new THREE.AmbientLight(
       this.config.lighting.ambient.color,
       this.config.lighting.ambient.intensity
@@ -147,29 +128,32 @@ export default class Scene2 extends BaseScene {
     this.scene.add(this.ambientLight);
     this.lights.push(this.ambientLight);
 
-    this.mainLight = new THREE.DirectionalLight(
-      this.config.lighting.main.color,
-      this.config.lighting.main.intensity
+    // Sun light (directional)
+    this.sunLight = new THREE.DirectionalLight(
+      this.config.lighting.sun.color,
+      this.config.lighting.sun.intensity
     );
-    this.mainLight.position.set(
-      this.config.lighting.main.position.x,
-      this.config.lighting.main.position.y,
-      this.config.lighting.main.position.z
+    this.sunLight.position.set(
+      this.config.lighting.sun.position.x,
+      this.config.lighting.sun.position.y,
+      this.config.lighting.sun.position.z
     );
-    this.mainLight.castShadow = true;
+    this.sunLight.castShadow = true;
 
-    this.mainLight.shadow.mapSize.width = 2048;
-    this.mainLight.shadow.mapSize.height = 2048;
-    this.mainLight.shadow.camera.left = -100;
-    this.mainLight.shadow.camera.right = 100;
-    this.mainLight.shadow.camera.top = 100;
-    this.mainLight.shadow.camera.bottom = -100;
-    this.mainLight.shadow.camera.near = 0.5;
-    this.mainLight.shadow.camera.far = 500;
+    // Shadow settings
+    this.sunLight.shadow.mapSize.width = 2048;
+    this.sunLight.shadow.mapSize.height = 2048;
+    this.sunLight.shadow.camera.left = -50;
+    this.sunLight.shadow.camera.right = 50;
+    this.sunLight.shadow.camera.top = 50;
+    this.sunLight.shadow.camera.bottom = -50;
+    this.sunLight.shadow.camera.near = 0.5;
+    this.sunLight.shadow.camera.far = 100;
 
-    this.scene.add(this.mainLight);
-    this.lights.push(this.mainLight);
+    this.scene.add(this.sunLight);
+    this.lights.push(this.sunLight);
 
+    // Fill light
     this.fillLight = new THREE.DirectionalLight(
       this.config.lighting.fill.color,
       this.config.lighting.fill.intensity
@@ -182,17 +166,16 @@ export default class Scene2 extends BaseScene {
     this.scene.add(this.fillLight);
     this.lights.push(this.fillLight);
 
-    console.log("✅ Lighting setup complete");
+    console.log("✅ Forest lighting setup");
   }
 
   setupKeyboardControls() {
     this.onKeyPress = (e) => {
       const key = e.key;
 
-      // Model scale
+      // Scale controls
       if (key === "1") {
         this.currentScale.forest -= 0.1;
-        this.currentScale.forest = Math.max(0.1, this.currentScale.forest);
         this.updateForestScale();
       }
       if (key === "2") {
@@ -200,21 +183,7 @@ export default class Scene2 extends BaseScene {
         this.updateForestScale();
       }
 
-      // Model rotation
-      if (key === "3") {
-        if (this.forestModel) {
-          this.forestModel.rotation.y -= 0.1;
-          this.updateInfo();
-        }
-      }
-      if (key === "4") {
-        if (this.forestModel) {
-          this.forestModel.rotation.y += 0.1;
-          this.updateInfo();
-        }
-      }
-
-      // Lighting
+      // Lighting controls
       if (key === "5") {
         this.ambientLight.intensity = Math.max(
           0,
@@ -230,11 +199,19 @@ export default class Scene2 extends BaseScene {
         this.updateInfo();
       }
       if (key === "7") {
-        this.mainLight.intensity = Math.max(0, this.mainLight.intensity - 0.1);
+        this.sunLight.intensity = Math.max(0, this.sunLight.intensity - 0.1);
         this.updateInfo();
       }
       if (key === "8") {
-        this.mainLight.intensity = Math.min(3, this.mainLight.intensity + 0.1);
+        this.sunLight.intensity = Math.min(3, this.sunLight.intensity + 0.1);
+        this.updateInfo();
+      }
+      if (key === "9") {
+        this.fillLight.intensity = Math.max(0, this.fillLight.intensity - 0.1);
+        this.updateInfo();
+      }
+      if (key === "0") {
+        this.fillLight.intensity = Math.min(3, this.fillLight.intensity + 0.1);
         this.updateInfo();
       }
 
@@ -244,6 +221,9 @@ export default class Scene2 extends BaseScene {
       }
       if (key === "r" || key === "R") {
         this.resetToDefault();
+      }
+      if (key === "f" || key === "F") {
+        this.toggleFreeMode();
       }
     };
 
@@ -258,6 +238,7 @@ export default class Scene2 extends BaseScene {
         this.currentScale.forest
       );
       this.updateInfo();
+      console.log(`🌲 Forest scale: ${this.currentScale.forest.toFixed(2)}`);
     }
   }
 
@@ -268,14 +249,15 @@ export default class Scene2 extends BaseScene {
     this.infoElement.style.top = "100px";
     this.infoElement.style.left = "20px";
     this.infoElement.style.backgroundColor = "rgba(0, 0, 0, 0.8)";
-    this.infoElement.style.color = "#00FF00";
+    this.infoElement.style.color = "#00ff00";
     this.infoElement.style.padding = "15px";
     this.infoElement.style.fontFamily = "monospace";
     this.infoElement.style.fontSize = "14px";
     this.infoElement.style.borderRadius = "5px";
-    this.infoElement.style.border = "2px solid #00FF00";
+    this.infoElement.style.border = "2px solid #00ff00";
     this.infoElement.style.zIndex = "999";
     this.infoElement.style.lineHeight = "1.5";
+    this.infoElement.style.display = "none"; // Hidden until scene is active
     document.body.appendChild(this.infoElement);
 
     this.updateInfo();
@@ -284,52 +266,43 @@ export default class Scene2 extends BaseScene {
   updateInfo() {
     if (!this.infoElement) return;
 
-    const rotationDeg = this.forestModel
-      ? ((this.forestModel.rotation.y * 180) / Math.PI).toFixed(1)
-      : "0.0";
-
     this.infoElement.innerHTML = `
-            <strong>🌲 SCENE 2 - FOREST</strong><br>
-            <br>
-            <strong>📦 MODEL</strong><br>
-            Scale: ${this.currentScale.forest.toFixed(2)}<br>
-            Rotation Y: ${rotationDeg}°<br>
-            <br>
-            <strong>💡 LIGHTING</strong><br>
-            Ambient: ${this.ambientLight.intensity.toFixed(2)}<br>
-            Main: ${this.mainLight.intensity.toFixed(2)}<br>
-        `;
+      <strong>🌲 SCENE 2 - FOREST</strong><br>
+      <br>
+      <strong>📦 MODEL</strong><br>
+      Forest Scale: ${this.currentScale.forest.toFixed(2)}<br>
+      <br>
+      <strong>💡 LIGHTING</strong><br>
+      Ambient: ${this.ambientLight.intensity.toFixed(2)}<br>
+      Sun: ${this.sunLight.intensity.toFixed(2)}<br>
+      Fill: ${this.fillLight.intensity.toFixed(2)}<br>
+    `;
   }
 
   printCurrentConfig() {
     console.log("");
     console.log("========================================");
-    console.log("📋 SCENE 2 - CURRENT CONFIGURATION");
+    console.log("📋 CURRENT CONFIGURATION - SCENE 2");
     console.log("========================================");
     console.log("");
     console.log("// Copy this to config.js");
     console.log("");
     console.log("scale: {");
     console.log(
-      `    forest: { x: ${this.currentScale.forest}, y: ${this.currentScale.forest}, z: ${this.currentScale.forest} }`
+      `  forest: { x: ${this.currentScale.forest}, y: ${this.currentScale.forest}, z: ${this.currentScale.forest} }`
     );
     console.log("},");
     console.log("");
-    if (this.forestModel) {
-      console.log("rotations: {");
-      console.log(
-        `    forest: { x: ${this.forestModel.rotation.x}, y: ${this.forestModel.rotation.y}, z: ${this.forestModel.rotation.z} }`
-      );
-      console.log("},");
-      console.log("");
-    }
     console.log("lighting: {");
-    console.log("    ambient: {");
-    console.log(`        intensity: ${this.ambientLight.intensity},`);
-    console.log("    },");
-    console.log("    main: {");
-    console.log(`        intensity: ${this.mainLight.intensity},`);
-    console.log("    },");
+    console.log("  ambient: {");
+    console.log(`    intensity: ${this.ambientLight.intensity.toFixed(2)}`);
+    console.log("  },");
+    console.log("  sun: {");
+    console.log(`    intensity: ${this.sunLight.intensity.toFixed(2)}`);
+    console.log("  },");
+    console.log("  fill: {");
+    console.log(`    intensity: ${this.fillLight.intensity.toFixed(2)}`);
+    console.log("  }");
     console.log("},");
     console.log("");
     console.log("========================================");
@@ -337,38 +310,54 @@ export default class Scene2 extends BaseScene {
   }
 
   resetToDefault() {
-    this.currentScale.forest = 1.0;
+    this.currentScale.forest = this.config.scale.forest.x;
     this.updateForestScale();
 
-    if (this.forestModel) {
-      this.forestModel.rotation.y = 0;
-    }
-
     this.ambientLight.intensity = this.config.lighting.ambient.intensity;
-    this.mainLight.intensity = this.config.lighting.main.intensity;
+    this.sunLight.intensity = this.config.lighting.sun.intensity;
     this.fillLight.intensity = this.config.lighting.fill.intensity;
 
     this.updateInfo();
     console.log("✅ Reset to default values");
   }
 
+  toggleFreeMode() {
+    const app = window.app;
+    if (app && app.cameraController) {
+      app.toggleMode();
+    }
+  }
+
   enter() {
     super.enter();
-    this.updateInfo();
 
-    // ✅ Remove white fade overlay dari Opening Scene
-    const whiteFade = document.getElementById("white-fade");
-    if (whiteFade) {
-      console.log("🎨 Fading out white overlay...");
-      whiteFade.style.transition = "opacity 1500ms ease"; // 1.5 detik fade out
-      whiteFade.style.opacity = "0";
-      setTimeout(() => {
-        whiteFade.remove();
-        console.log("✅ White fade removed");
-      }, 1500);
+    // ✅ SET CAMERA DI SINI (saat scene aktif)
+    const app = window.app;
+    if (app && app.cameraController) {
+      app.cameraController.setExactPosition(
+        this.config.camera.initial,
+        this.config.camera.lookAt
+      );
+    } else {
+      this.camera.position.set(
+        this.config.camera.initial.x,
+        this.config.camera.initial.y,
+        this.config.camera.initial.z
+      );
+      this.camera.lookAt(
+        this.config.camera.lookAt.x,
+        this.config.camera.lookAt.y,
+        this.config.camera.lookAt.z
+      );
     }
 
-    console.log("🌲 Welcome to Scene 2 - Forest Environment!");
+    // Show info display
+    if (this.infoElement) {
+      this.infoElement.style.display = "block";
+    }
+
+    this.updateInfo();
+    console.log("🌲 Scene 2 (Forest) entered!");
   }
 
   update(deltaTime) {
@@ -376,17 +365,22 @@ export default class Scene2 extends BaseScene {
 
     if (!this.isActive) return;
 
-    // Add any Scene 2 specific updates here
-    // For example: animate forest elements, wind effects, etc.
+    // Add any animations here if needed
+    // Example: rotate forest slowly
+    // if (this.forestModel) {
+    //   this.forestModel.rotation.y += 0.0001 * deltaTime;
+    // }
   }
 
   exit() {
     super.exit();
 
+    // Hide info display
     if (this.infoElement) {
-      this.infoElement.remove();
-      this.infoElement = null;
+      this.infoElement.style.display = "none";
     }
+
+    console.log("🌲 Scene 2 (Forest) exited");
   }
 
   dispose() {
@@ -395,29 +389,6 @@ export default class Scene2 extends BaseScene {
     if (this.infoElement) {
       this.infoElement.remove();
       this.infoElement = null;
-    }
-
-    // Dispose forest model
-    if (this.forestModel) {
-      this.forestModel.traverse((child) => {
-        if (child.isMesh) {
-          if (child.geometry) child.geometry.dispose();
-          if (child.material) {
-            if (Array.isArray(child.material)) {
-              child.material.forEach((mat) => {
-                if (mat.map) mat.map.dispose();
-                mat.dispose();
-              });
-            } else {
-              if (child.material.map) child.material.map.dispose();
-              child.material.dispose();
-            }
-          }
-        }
-      });
-      this.scene.remove(this.forestModel);
-      this.forestModel = null;
-      console.log("✅ Forest model disposed");
     }
 
     super.dispose();
