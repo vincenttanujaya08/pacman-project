@@ -149,26 +149,7 @@ export default class OpeningScene extends BaseScene {
       console.log("✅ Logo effect ready");
     }
 
-    // Setup camera
-    const app = window.app;
-    if (app && app.cameraController) {
-      app.cameraController.setExactPosition(
-        this.config.camera.initial,
-        this.config.camera.lookAt
-      );
-    } else {
-      this.camera.position.set(
-        this.config.camera.initial.x,
-        this.config.camera.initial.y,
-        this.config.camera.initial.z
-      );
-
-      this.camera.lookAt(
-        this.config.camera.lookAt.x,
-        this.config.camera.lookAt.y,
-        this.config.camera.lookAt.z
-      );
-    }
+    // ✅ REMOVED: Camera setup from init() - moved to enter()
 
     // Create info display
     this.createInfoDisplay();
@@ -479,6 +460,7 @@ export default class OpeningScene extends BaseScene {
     this.infoElement.style.border = "2px solid #FFD700";
     this.infoElement.style.zIndex = "999";
     this.infoElement.style.lineHeight = "1.5";
+    this.infoElement.style.display = "none"; // ✅ Hidden until scene is active
     document.body.appendChild(this.infoElement);
 
     this.updateInfo();
@@ -549,6 +531,34 @@ export default class OpeningScene extends BaseScene {
 
   enter() {
     super.enter();
+
+    // ✅ SET CAMERA DI SINI (saat scene aktif) - SAMA KAYAK SCENE2!
+    const app = window.app;
+    if (app && app.cameraController) {
+      app.cameraController.setExactPosition(
+        this.config.camera.initial,
+        this.config.camera.lookAt
+      );
+      console.log("📹 Opening scene camera set!");
+    } else {
+      this.camera.position.set(
+        this.config.camera.initial.x,
+        this.config.camera.initial.y,
+        this.config.camera.initial.z
+      );
+
+      this.camera.lookAt(
+        this.config.camera.lookAt.x,
+        this.config.camera.lookAt.y,
+        this.config.camera.lookAt.z
+      );
+    }
+
+    // Show info display
+    if (this.infoElement) {
+      this.infoElement.style.display = "block";
+    }
+
     this.updateInfo();
   }
 
@@ -681,7 +691,7 @@ export default class OpeningScene extends BaseScene {
     }
 
     // Check if scene 2 exists
-    const nextSceneName = "ghosts"; // Change this to your actual scene 2 name
+    const nextSceneName = "scene2";
     const scene2 = app.sceneManager.getScene(nextSceneName);
 
     if (!scene2) {
@@ -732,9 +742,9 @@ export default class OpeningScene extends BaseScene {
   exit() {
     super.exit();
 
+    // ✅ Hide info display when exiting
     if (this.infoElement) {
-      this.infoElement.remove();
-      this.infoElement = null;
+      this.infoElement.style.display = "none";
     }
   }
 

@@ -24,6 +24,7 @@ class App {
     this.loadingScreen = null;
     this.toggleModeBtn = null;
     this.freeInstructions = null;
+    this.sceneNav = null; // ✅ NEW: Scene navigation container
 
     this.init();
   }
@@ -55,6 +56,7 @@ class App {
     this.start();
 
     console.log("Initialization complete!");
+    console.log("💡 Press H to toggle scene navigation menu");
   }
 
   // ========== SETUP ==========
@@ -64,6 +66,7 @@ class App {
     this.loadingScreen = document.getElementById("loading");
     this.toggleModeBtn = document.getElementById("toggleMode");
     this.freeInstructions = document.getElementById("freeInstructions");
+    this.sceneNav = document.querySelector(".scene-nav"); // ✅ NEW
   }
 
   setupRenderer() {
@@ -135,12 +138,32 @@ class App {
       });
     });
 
+    // ✅ NEW: Toggle scene navigation with H key
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "h" || e.key === "H") {
+        this.toggleSceneNav();
+      }
+    });
+
     // Window resize
     window.addEventListener("resize", () => {
       this.onWindowResize();
     });
 
     console.log("UI setup complete");
+  }
+
+  // ✅ NEW: Toggle scene navigation visibility
+  toggleSceneNav() {
+    if (!this.sceneNav) return;
+
+    this.sceneNav.classList.toggle("visible");
+
+    if (this.sceneNav.classList.contains("visible")) {
+      console.log("✅ Scene navigation menu shown");
+    } else {
+      console.log("❌ Scene navigation menu hidden");
+    }
   }
 
   // ========== SCENE LOADING ==========
@@ -163,15 +186,12 @@ class App {
 
     this.updateLoadingProgress(50, "Loading scene 2...");
 
-    // ✅ Load Scene 2 (Ghosts/next scene)
-    // TODO: Ganti dengan scene 2 kamu yang sebenarnya
-    // Untuk sementara pakai TestScene dulu
-    // Load Scene 2 module (replace with your actual scene file)
+    // ✅ Load Scene 2
     const Scene2 = await import("./scenes/scene2/scene2.js").then(
       (m) => m.default
     );
-    const scene2 = new Scene2("ghosts", this.renderer, this.camera);
-    await this.sceneManager.addScene("ghosts", scene2);
+    const scene2 = new Scene2("scene2", this.renderer, this.camera);
+    await this.sceneManager.addScene("scene2", scene2);
 
     this.updateLoadingProgress(100, "Ready!");
 
