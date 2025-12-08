@@ -149,8 +149,6 @@ export default class OpeningScene extends BaseScene {
       console.log("✅ Logo effect ready");
     }
 
-    // ✅ REMOVED: Camera setup from init() - moved to enter()
-
     // Create info display
     this.createInfoDisplay();
 
@@ -460,7 +458,7 @@ export default class OpeningScene extends BaseScene {
     this.infoElement.style.border = "2px solid #FFD700";
     this.infoElement.style.zIndex = "999";
     this.infoElement.style.lineHeight = "1.5";
-    this.infoElement.style.display = "none"; // ✅ Hidden until scene is active
+    this.infoElement.style.display = "none";
     document.body.appendChild(this.infoElement);
 
     this.updateInfo();
@@ -529,10 +527,87 @@ export default class OpeningScene extends BaseScene {
     }
   }
 
+  // ✅ NEW: Hide opening scene (called when transitioning to next scene)
+  hideOpeningScene() {
+    console.log("👁️ Hiding opening scene...");
+
+    // Hide models
+    if (this.cityModel) this.cityModel.visible = false;
+    if (this.pacmanModel) this.pacmanModel.visible = false;
+
+    // Turn off lights
+    if (this.ambientLight) this.ambientLight.intensity = 0;
+    if (this.mainLight) this.mainLight.intensity = 0;
+    if (this.fillLight) this.fillLight.intensity = 0;
+    if (this.pacmanSpotlight) this.pacmanSpotlight.intensity = 0;
+
+    this.streetLights.forEach((sl) => {
+      sl.light.intensity = 0;
+    });
+
+    // Hide effects
+    if (this.rainEffect && this.rainEffect.particleSystem) {
+      this.rainEffect.particleSystem.visible = false;
+    }
+
+    if (this.logoEffect) {
+      this.logoEffect.hide();
+    }
+
+    // Hide background/fog
+    this.scene.background = new THREE.Color(0x000000);
+    this.scene.fog = null;
+
+    console.log("✅ Opening scene hidden (not disposed)");
+  }
+
+  // ✅ NEW: Show opening scene and reset state (called when entering scene)
+  showOpeningScene() {
+    console.log("👁️ Showing opening scene...");
+
+    // Restore background and fog
+    this.scene.background = new THREE.Color(0x0a0015);
+    this.scene.fog = new THREE.Fog(
+      this.config.lighting.fog.color,
+      this.config.lighting.fog.near,
+      this.config.lighting.fog.far
+    );
+
+    // Show models
+    if (this.cityModel) this.cityModel.visible = true;
+    if (this.pacmanModel) this.pacmanModel.visible = true;
+
+    // Reset pacman position and animation
+    if (this.pacmanController) {
+      this.pacmanController.reset();
+    }
+
+    // Restore lighting
+    this.resetCinematicLights();
+
+    // Show rain
+    if (this.rainEffect && this.rainEffect.particleSystem) {
+      this.rainEffect.particleSystem.visible = true;
+    }
+
+    // Reset logo effect
+    if (this.logoEffect) {
+      this.logoEffect.reset();
+    }
+
+    // Reset transition flag
+    this.hasTransitioned = false;
+
+    console.log("✅ Opening scene shown and reset!");
+  }
+
   enter() {
     super.enter();
 
-    // ✅ SET CAMERA DI SINI (saat scene aktif) - SAMA KAYAK SCENE2!
+    // ✅ Show and reset opening scene
+    this.showOpeningScene();
+
+    // ✅ Set camera position
     const app = window.app;
     if (app && app.cameraController) {
       app.cameraController.setExactPosition(
@@ -625,9 +700,9 @@ export default class OpeningScene extends BaseScene {
         console.log("🎬 Zoom complete! Preparing transition to next scene...");
         this.hasTransitioned = true; // Prevent multiple triggers
 
-        // Dispose opening scene completely
+        // ✅ HIDE (not dispose) opening scene
         setTimeout(() => {
-          this.disposeOpeningScene();
+          this.hideOpeningScene(); // ✅ Changed from disposeOpeningScene()
           this.transitionToNextScene();
         }, 1500); // Wait for white flash to complete
       }
@@ -642,45 +717,7 @@ export default class OpeningScene extends BaseScene {
     }
   }
 
-  // ✅ NEW: Dispose all opening scene resources
-  disposeOpeningScene() {
-    console.log("🗑️ Disposing opening scene resources...");
-
-    // Hide and dispose city
-    if (this.cityModel) {
-      this.cityModel.visible = false;
-      this.scene.remove(this.cityModel);
-    }
-
-    // Hide and dispose pacman
-    if (this.pacmanModel) {
-      this.pacmanModel.visible = false;
-      this.scene.remove(this.pacmanModel);
-    }
-
-    // Dispose lights
-    if (this.ambientLight) this.scene.remove(this.ambientLight);
-    if (this.mainLight) this.scene.remove(this.mainLight);
-    if (this.fillLight) this.scene.remove(this.fillLight);
-    if (this.pacmanSpotlight) this.scene.remove(this.pacmanSpotlight);
-
-    this.streetLights.forEach((sl) => {
-      this.scene.remove(sl.light);
-    });
-
-    // Dispose effects
-    if (this.rainEffect) {
-      this.rainEffect.dispose();
-    }
-
-    if (this.logoEffect) {
-      this.logoEffect.dispose();
-    }
-
-    console.log("✅ Opening scene disposed");
-  }
-
-  // ✅ NEW: Transition to next scene
+  // ✅ Transition to next scene
   transitionToNextScene() {
     console.log("🎬 Transitioning to next scene...");
 

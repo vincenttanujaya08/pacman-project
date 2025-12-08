@@ -3,6 +3,8 @@
 
 import BaseScene from "../BaseScene.js";
 import config from "./config.js";
+import StarField from "./StarField.js";
+import CameraMode from "./CameraMode.js";
 
 export default class Scene2 extends BaseScene {
   constructor(name, renderer, camera) {
@@ -13,6 +15,10 @@ export default class Scene2 extends BaseScene {
     // Models
     this.forestModel = null;
 
+    // Effects
+    this.starField = null;
+    this.cameraMode = null;
+
     // Lights
     this.ambientLight = null;
     this.sunLight = null;
@@ -21,7 +27,7 @@ export default class Scene2 extends BaseScene {
     // Setup mode
     this.setupMode = true;
     this.currentScale = {
-      forest: 1.0,
+      forest: config.scale.forest.x, // ✅ Use config value instead of hardcoded 1.0
     };
 
     // Info display
@@ -53,6 +59,18 @@ export default class Scene2 extends BaseScene {
 
     // Setup lighting
     this.setupLighting();
+
+    // ✅ Setup star field
+    this.starField = new StarField(this.scene, {
+      starCount: 5000,
+      spread: 500,
+      size: 2,
+    });
+    this.starField.init();
+
+    // ✅ Setup camera mode system (FPS + Third Person)
+    this.cameraMode = new CameraMode(this.scene, this.camera, this.renderer);
+    console.log("✅ Camera mode system ready");
 
     // Load Forest model
     try {
@@ -86,13 +104,12 @@ export default class Scene2 extends BaseScene {
       });
 
       this.addObject(this.forestModel, "forest");
-      console.log("✅ Forest model loaded");
+      console.log(
+        `✅ Forest model loaded with scale: ${this.config.scale.forest.x}`
+      );
     } catch (error) {
       console.error("❌ Error loading forest model:", error);
     }
-
-    // ✅ JANGAN set camera di init() - biarkan opening scene yang control
-    // Camera akan di-set di enter()
 
     // Create info display
     this.createInfoDisplay();
@@ -175,11 +192,11 @@ export default class Scene2 extends BaseScene {
 
       // Scale controls
       if (key === "1") {
-        this.currentScale.forest -= 0.1;
+        this.currentScale.forest -= 1; // ✅ Adjust step size for scale 100
         this.updateForestScale();
       }
       if (key === "2") {
-        this.currentScale.forest += 0.1;
+        this.currentScale.forest += 1; // ✅ Adjust step size for scale 100
         this.updateForestScale();
       }
 
@@ -331,24 +348,32 @@ export default class Scene2 extends BaseScene {
   enter() {
     super.enter();
 
-    // ✅ SET CAMERA DI SINI (saat scene aktif)
+    // ✅ DISABLE main CameraController (conflict fix)
     const app = window.app;
     if (app && app.cameraController) {
-      app.cameraController.setExactPosition(
-        this.config.camera.initial,
-        this.config.camera.lookAt
+      app.cameraController.freeControls.enabled = false;
+      console.log("🔒 Main camera controller disabled");
+    }
+
+    // ✅ Calculate proper start position from forest model
+    if (this.forestModel && this.cameraMode) {
+      const box = new THREE.Box3().setFromObject(this.forestModel);
+      const center = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3());
+
+      // Start position: above and in front of model
+      const startPos = new THREE.Vector3(
+        center.x,
+        center.y + size.y * 0.3, // 30% above center
+        center.z + size.z * 0.6 // In front of model
       );
-    } else {
-      this.camera.position.set(
-        this.config.camera.initial.x,
-        this.config.camera.initial.y,
-        this.config.camera.initial.z
-      );
-      this.camera.lookAt(
-        this.config.camera.lookAt.x,
-        this.config.camera.lookAt.y,
-        this.config.camera.lookAt.z
-      );
+
+      this.cameraMode.playerPosition.copy(startPos);
+      this.cameraMode.targetSphere.position.copy(startPos);
+
+      console.log("📐 Forest center:", center);
+      console.log("📐 Forest size:", size);
+      console.log("📷 Start position:", startPos);
     }
 
     // Show info display
@@ -358,12 +383,58 @@ export default class Scene2 extends BaseScene {
 
     this.updateInfo();
     console.log("🌲 Scene 2 (Forest) entered!");
+    console.log("📷 Press [V] to toggle Third Person / FPS mode");
+  }
+
+  // ✅ AUTO-FIT CAMERA TO MODEL
+  fitCameraToModel(model) {
+    // Calculate bounding box
+    const box = new THREE.Box3().setFromObject(model);
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+
+    // Get the max side of the bounding box
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const fov = this.camera.fov * (Math.PI / 180);
+    let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
+
+    // Add some padding
+    cameraZ *= 1.5;
+
+    // Position camera
+    const cameraPos = new THREE.Vector3(
+      center.x,
+      center.y + maxDim * 0.3, // Slightly above
+      center.z + cameraZ
+    );
+
+    const app = window.app;
+    if (app && app.cameraController) {
+      app.cameraController.setExactPosition(cameraPos, center);
+    } else {
+      this.camera.position.copy(cameraPos);
+      this.camera.lookAt(center);
+    }
+
+    console.log("📐 Model size:", size);
+    console.log("📐 Model center:", center);
+    console.log("📷 Camera fitted to:", cameraPos);
   }
 
   update(deltaTime) {
     super.update(deltaTime);
 
     if (!this.isActive) return;
+
+    // Update star field
+    if (this.starField) {
+      this.starField.update(deltaTime);
+    }
+
+    // ✅ Update camera mode system
+    if (this.cameraMode) {
+      this.cameraMode.update(deltaTime / 1000); // Convert to seconds
+    }
 
     // Add any animations here if needed
     // Example: rotate forest slowly
@@ -374,6 +445,13 @@ export default class Scene2 extends BaseScene {
 
   exit() {
     super.exit();
+
+    // ✅ RE-ENABLE main CameraController
+    const app = window.app;
+    if (app && app.cameraController) {
+      app.cameraController.freeControls.enabled = true;
+      console.log("🔓 Main camera controller re-enabled");
+    }
 
     // Hide info display
     if (this.infoElement) {
@@ -389,6 +467,18 @@ export default class Scene2 extends BaseScene {
     if (this.infoElement) {
       this.infoElement.remove();
       this.infoElement = null;
+    }
+
+    // Dispose star field
+    if (this.starField) {
+      this.starField.dispose();
+      this.starField = null;
+    }
+
+    // Dispose camera mode
+    if (this.cameraMode) {
+      this.cameraMode.dispose();
+      this.cameraMode = null;
     }
 
     super.dispose();
