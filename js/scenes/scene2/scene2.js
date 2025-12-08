@@ -1,37 +1,28 @@
 // js/scenes/scene2/Scene2.js
-// Scene 2 - Forest (Complete version with config)
+// Scene 2 - Using particles config from config.js
 
 import BaseScene from "../BaseScene.js";
 import config from "./config.js";
-import StarField from "./StarField.js";
 import CameraMode from "./CameraMode.js";
+import LightParticles from "./LightParticles.js";
 
 export default class Scene2 extends BaseScene {
   constructor(name, renderer, camera) {
     super(name, renderer, camera);
 
     this.config = config;
-
-    // Models
     this.forestModel = null;
-
-    // Effects
-    this.starField = null;
     this.cameraMode = null;
-
-    // Lights
+    this.lightParticles = null;
     this.ambientLight = null;
     this.sunLight = null;
     this.fillLight = null;
-
-    // Setup mode
     this.setupMode = true;
     this.currentScale = {
-      forest: config.scale.forest.x, // ✅ Use config value instead of hardcoded 1.0
+      forest: config.scale.forest.x,
     };
-
-    // Info display
     this.infoElement = null;
+    this.materialDarkness = 0.15;
 
     this.setupKeyboardControls();
   }
@@ -39,7 +30,7 @@ export default class Scene2 extends BaseScene {
   async init() {
     await super.init();
 
-    console.log(`[${this.name}] Loading models...`);
+    console.log(`[${this.name}] Init started...`);
 
     // Remove default lights
     this.lights.forEach((light) => this.scene.remove(light));
@@ -48,7 +39,7 @@ export default class Scene2 extends BaseScene {
     // Setup background
     this.scene.background = new THREE.Color(this.config.background.color);
 
-    // Setup fog if enabled
+    // Setup fog
     if (this.config.lighting.fog.enabled) {
       this.scene.fog = new THREE.Fog(
         this.config.lighting.fog.color,
@@ -60,20 +51,27 @@ export default class Scene2 extends BaseScene {
     // Setup lighting
     this.setupLighting();
 
-    // ✅ Setup star field
-    this.starField = new StarField(this.scene, {
-      starCount: 5000,
-      spread: 500,
-      size: 2,
-    });
-    this.starField.init();
+    // ✅ Setup light particles FROM CONFIG
+    if (this.config.lightParticles && this.config.lightParticles.enabled) {
+      this.lightParticles = new LightParticles(
+        this.scene,
+        this.camera,
+        this.config.lightParticles
+      );
 
-    // ✅ Setup camera mode system (FPS + Third Person)
+      this.lightParticles.init();
+      console.log(
+        `✨ Light particles: ${this.config.lightParticles.particleCount} particles, size ${this.config.lightParticles.size}`
+      );
+    }
+
+    // Setup camera mode
     this.cameraMode = new CameraMode(this.scene, this.camera, this.renderer);
-    console.log("✅ Camera mode system ready");
+    console.log("✅ Camera mode ready");
 
     // Load Forest model
     try {
+      console.log("Loading forest model...");
       const forestGltf = await this.loadModel(this.config.models.forest);
       this.forestModel = forestGltf.scene;
 
@@ -103,41 +101,22 @@ export default class Scene2 extends BaseScene {
         }
       });
 
+      console.log("Darkening materials...");
+      this.darkenForestMaterials(this.materialDarkness);
+
+      this.forestModel.visible = true;
+
       this.addObject(this.forestModel, "forest");
-      console.log(
-        `✅ Forest model loaded with scale: ${this.config.scale.forest.x}`
-      );
+      console.log("✅ Forest loaded");
     } catch (error) {
-      console.error("❌ Error loading forest model:", error);
+      console.error("❌ Error loading forest:", error);
     }
 
-    // Create info display
     this.createInfoDisplay();
-
-    console.log("");
-    console.log("========================================");
-    console.log("🌲 SCENE 2 - FOREST");
-    console.log("========================================");
-    console.log("");
-    console.log("📦 MODELS:");
-    console.log("  [1] Forest scale -  [2] Forest scale +");
-    console.log("");
-    console.log("💡 LIGHTING:");
-    console.log("  [5] Ambient -       [6] Ambient +");
-    console.log("  [7] Sun -           [8] Sun +");
-    console.log("  [9] Fill -          [0] Fill +");
-    console.log("");
-    console.log("📋 OTHER:");
-    console.log("  [P] Print current config");
-    console.log("  [R] Reset to default");
-    console.log("  [F] Toggle Free Mode");
-    console.log("");
-    console.log("========================================");
-    console.log("");
+    console.log("✅ Scene 2 ready!");
   }
 
   setupLighting() {
-    // Ambient light
     this.ambientLight = new THREE.AmbientLight(
       this.config.lighting.ambient.color,
       this.config.lighting.ambient.intensity
@@ -145,7 +124,6 @@ export default class Scene2 extends BaseScene {
     this.scene.add(this.ambientLight);
     this.lights.push(this.ambientLight);
 
-    // Sun light (directional)
     this.sunLight = new THREE.DirectionalLight(
       this.config.lighting.sun.color,
       this.config.lighting.sun.intensity
@@ -157,7 +135,6 @@ export default class Scene2 extends BaseScene {
     );
     this.sunLight.castShadow = true;
 
-    // Shadow settings
     this.sunLight.shadow.mapSize.width = 2048;
     this.sunLight.shadow.mapSize.height = 2048;
     this.sunLight.shadow.camera.left = -50;
@@ -170,7 +147,6 @@ export default class Scene2 extends BaseScene {
     this.scene.add(this.sunLight);
     this.lights.push(this.sunLight);
 
-    // Fill light
     this.fillLight = new THREE.DirectionalLight(
       this.config.lighting.fill.color,
       this.config.lighting.fill.intensity
@@ -182,57 +158,97 @@ export default class Scene2 extends BaseScene {
     );
     this.scene.add(this.fillLight);
     this.lights.push(this.fillLight);
+  }
 
-    console.log("✅ Forest lighting setup");
+  darkenForestMaterials() {
+    if (!this.forestModel) return;
+
+    this.forestModel.traverse((child) => {
+      if (!child.isMesh || !child.material) return;
+
+      // Clone material only once
+      if (!child.material.userData.originalColor) {
+        child.material = child.material.clone();
+        child.material.userData.originalColor = child.material.color.clone();
+      }
+
+      const mat = child.material;
+      const originalColor = mat.userData.originalColor;
+
+      mat.color.copy(originalColor).multiplyScalar(0.25); // 25% brightness
+
+      // Remove emissive glow completely (forest should not glow)
+      if ("emissive" in mat) {
+        mat.emissive.setRGB(0, 0, 0);
+      }
+
+      // Make shadows stronger
+      if ("metalness" in mat) mat.metalness = 0.0;
+      if ("roughness" in mat) mat.roughness = 1.0;
+
+      // No translucency (forest should look deep and dense)
+      mat.transparent = false;
+      mat.opacity = 1.0;
+    });
+
+    console.log("🌙 Forest materials darkened safely");
   }
 
   setupKeyboardControls() {
     this.onKeyPress = (e) => {
       const key = e.key;
 
-      // Scale controls
       if (key === "1") {
-        this.currentScale.forest -= 1; // ✅ Adjust step size for scale 100
+        this.currentScale.forest -= 1;
         this.updateForestScale();
       }
       if (key === "2") {
-        this.currentScale.forest += 1; // ✅ Adjust step size for scale 100
+        this.currentScale.forest += 1;
         this.updateForestScale();
       }
 
-      // Lighting controls
+      if (key === "3") {
+        this.materialDarkness = Math.max(0, this.materialDarkness - 0.05);
+        this.darkenForestMaterials(this.materialDarkness);
+        this.updateInfo();
+      }
+      if (key === "4") {
+        this.materialDarkness = Math.min(1, this.materialDarkness + 0.05);
+        this.darkenForestMaterials(this.materialDarkness);
+        this.updateInfo();
+      }
+
       if (key === "5") {
         this.ambientLight.intensity = Math.max(
           0,
-          this.ambientLight.intensity - 0.1
+          this.ambientLight.intensity - 0.05
         );
         this.updateInfo();
       }
       if (key === "6") {
         this.ambientLight.intensity = Math.min(
-          2,
-          this.ambientLight.intensity + 0.1
+          1,
+          this.ambientLight.intensity + 0.05
         );
         this.updateInfo();
       }
       if (key === "7") {
-        this.sunLight.intensity = Math.max(0, this.sunLight.intensity - 0.1);
+        this.sunLight.intensity = Math.max(0, this.sunLight.intensity - 0.05);
         this.updateInfo();
       }
       if (key === "8") {
-        this.sunLight.intensity = Math.min(3, this.sunLight.intensity + 0.1);
+        this.sunLight.intensity = Math.min(1, this.sunLight.intensity + 0.05);
         this.updateInfo();
       }
       if (key === "9") {
-        this.fillLight.intensity = Math.max(0, this.fillLight.intensity - 0.1);
+        this.fillLight.intensity = Math.max(0, this.fillLight.intensity - 0.05);
         this.updateInfo();
       }
       if (key === "0") {
-        this.fillLight.intensity = Math.min(3, this.fillLight.intensity + 0.1);
+        this.fillLight.intensity = Math.min(1, this.fillLight.intensity + 0.05);
         this.updateInfo();
       }
 
-      // Utilities
       if (key === "p" || key === "P") {
         this.printCurrentConfig();
       }
@@ -255,7 +271,6 @@ export default class Scene2 extends BaseScene {
         this.currentScale.forest
       );
       this.updateInfo();
-      console.log(`🌲 Forest scale: ${this.currentScale.forest.toFixed(2)}`);
     }
   }
 
@@ -274,7 +289,7 @@ export default class Scene2 extends BaseScene {
     this.infoElement.style.border = "2px solid #00ff00";
     this.infoElement.style.zIndex = "999";
     this.infoElement.style.lineHeight = "1.5";
-    this.infoElement.style.display = "none"; // Hidden until scene is active
+    this.infoElement.style.display = "none";
     document.body.appendChild(this.infoElement);
 
     this.updateInfo();
@@ -284,58 +299,52 @@ export default class Scene2 extends BaseScene {
     if (!this.infoElement) return;
 
     this.infoElement.innerHTML = `
-      <strong>🌲 SCENE 2 - FOREST</strong><br>
+      <strong>🌲 SCENE 2 - MAGICAL FOREST</strong><br>
       <br>
       <strong>📦 MODEL</strong><br>
       Forest Scale: ${this.currentScale.forest.toFixed(2)}<br>
       <br>
+      <strong>🎨 MATERIAL</strong><br>
+      Darkness: ${(this.materialDarkness * 100).toFixed(0)}%<br>
+      <br>
       <strong>💡 LIGHTING</strong><br>
       Ambient: ${this.ambientLight.intensity.toFixed(2)}<br>
-      Sun: ${this.sunLight.intensity.toFixed(2)}<br>
+      Moonlight: ${this.sunLight.intensity.toFixed(2)}<br>
       Fill: ${this.fillLight.intensity.toFixed(2)}<br>
+      <br>
+      <strong>✨ EFFECTS</strong><br>
+      Light Particles: ${this.lightParticles ? "Active" : "Disabled"}<br>
     `;
   }
 
   printCurrentConfig() {
     console.log("");
     console.log("========================================");
-    console.log("📋 CURRENT CONFIGURATION - SCENE 2");
+    console.log("📋 CURRENT CONFIG");
     console.log("========================================");
-    console.log("");
-    console.log("// Copy this to config.js");
-    console.log("");
-    console.log("scale: {");
-    console.log(
-      `  forest: { x: ${this.currentScale.forest}, y: ${this.currentScale.forest}, z: ${this.currentScale.forest} }`
-    );
-    console.log("},");
-    console.log("");
-    console.log("lighting: {");
-    console.log("  ambient: {");
-    console.log(`    intensity: ${this.ambientLight.intensity.toFixed(2)}`);
-    console.log("  },");
-    console.log("  sun: {");
-    console.log(`    intensity: ${this.sunLight.intensity.toFixed(2)}`);
-    console.log("  },");
-    console.log("  fill: {");
-    console.log(`    intensity: ${this.fillLight.intensity.toFixed(2)}`);
-    console.log("  }");
-    console.log("},");
-    console.log("");
+    console.log("Material darkness:", this.materialDarkness.toFixed(2));
+    console.log("Ambient:", this.ambientLight.intensity.toFixed(2));
+    console.log("Moonlight:", this.sunLight.intensity.toFixed(2));
+    console.log("Fill:", this.fillLight.intensity.toFixed(2));
+    if (this.lightParticles) {
+      console.log("Particles: enabled");
+    }
     console.log("========================================");
-    console.log("");
   }
 
   resetToDefault() {
     this.currentScale.forest = this.config.scale.forest.x;
     this.updateForestScale();
 
+    this.materialDarkness = 0.15;
+    this.darkenForestMaterials(this.materialDarkness);
+
     this.ambientLight.intensity = this.config.lighting.ambient.intensity;
     this.sunLight.intensity = this.config.lighting.sun.intensity;
     this.fillLight.intensity = this.config.lighting.fill.intensity;
 
     this.updateInfo();
-    console.log("✅ Reset to default values");
+    console.log("✅ Reset to defaults");
   }
 
   toggleFreeMode() {
@@ -348,77 +357,33 @@ export default class Scene2 extends BaseScene {
   enter() {
     super.enter();
 
-    // ✅ DISABLE main CameraController (conflict fix)
     const app = window.app;
     if (app && app.cameraController) {
       app.cameraController.freeControls.enabled = false;
-      console.log("🔒 Main camera controller disabled");
     }
 
-    // ✅ Calculate proper start position from forest model
+    // Calculate camera position
     if (this.forestModel && this.cameraMode) {
       const box = new THREE.Box3().setFromObject(this.forestModel);
       const center = box.getCenter(new THREE.Vector3());
       const size = box.getSize(new THREE.Vector3());
 
-      // Start position: above and in front of model
       const startPos = new THREE.Vector3(
         center.x,
-        center.y + size.y * 0.3, // 30% above center
-        center.z + size.z * 0.6 // In front of model
+        center.y + size.y * 0.3,
+        center.z + size.z * 0.6
       );
 
       this.cameraMode.playerPosition.copy(startPos);
       this.cameraMode.targetSphere.position.copy(startPos);
-
-      console.log("📐 Forest center:", center);
-      console.log("📐 Forest size:", size);
-      console.log("📷 Start position:", startPos);
     }
 
-    // Show info display
     if (this.infoElement) {
       this.infoElement.style.display = "block";
     }
 
     this.updateInfo();
-    console.log("🌲 Scene 2 (Forest) entered!");
-    console.log("📷 Press [V] to toggle Third Person / FPS mode");
-  }
-
-  // ✅ AUTO-FIT CAMERA TO MODEL
-  fitCameraToModel(model) {
-    // Calculate bounding box
-    const box = new THREE.Box3().setFromObject(model);
-    const center = box.getCenter(new THREE.Vector3());
-    const size = box.getSize(new THREE.Vector3());
-
-    // Get the max side of the bounding box
-    const maxDim = Math.max(size.x, size.y, size.z);
-    const fov = this.camera.fov * (Math.PI / 180);
-    let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
-
-    // Add some padding
-    cameraZ *= 1.5;
-
-    // Position camera
-    const cameraPos = new THREE.Vector3(
-      center.x,
-      center.y + maxDim * 0.3, // Slightly above
-      center.z + cameraZ
-    );
-
-    const app = window.app;
-    if (app && app.cameraController) {
-      app.cameraController.setExactPosition(cameraPos, center);
-    } else {
-      this.camera.position.copy(cameraPos);
-      this.camera.lookAt(center);
-    }
-
-    console.log("📐 Model size:", size);
-    console.log("📐 Model center:", center);
-    console.log("📷 Camera fitted to:", cameraPos);
+    console.log("🌲 Scene 2 entered!");
   }
 
   update(deltaTime) {
@@ -426,39 +391,26 @@ export default class Scene2 extends BaseScene {
 
     if (!this.isActive) return;
 
-    // Update star field
-    if (this.starField) {
-      this.starField.update(deltaTime);
+    if (this.lightParticles) {
+      this.lightParticles.update(deltaTime);
     }
 
-    // ✅ Update camera mode system
     if (this.cameraMode) {
-      this.cameraMode.update(deltaTime / 1000); // Convert to seconds
+      this.cameraMode.update(deltaTime / 1000);
     }
-
-    // Add any animations here if needed
-    // Example: rotate forest slowly
-    // if (this.forestModel) {
-    //   this.forestModel.rotation.y += 0.0001 * deltaTime;
-    // }
   }
 
   exit() {
     super.exit();
 
-    // ✅ RE-ENABLE main CameraController
     const app = window.app;
     if (app && app.cameraController) {
       app.cameraController.freeControls.enabled = true;
-      console.log("🔓 Main camera controller re-enabled");
     }
 
-    // Hide info display
     if (this.infoElement) {
       this.infoElement.style.display = "none";
     }
-
-    console.log("🌲 Scene 2 (Forest) exited");
   }
 
   dispose() {
@@ -469,13 +421,11 @@ export default class Scene2 extends BaseScene {
       this.infoElement = null;
     }
 
-    // Dispose star field
-    if (this.starField) {
-      this.starField.dispose();
-      this.starField = null;
+    if (this.lightParticles) {
+      this.lightParticles.dispose();
+      this.lightParticles = null;
     }
 
-    // Dispose camera mode
     if (this.cameraMode) {
       this.cameraMode.dispose();
       this.cameraMode = null;

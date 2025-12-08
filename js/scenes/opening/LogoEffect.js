@@ -270,44 +270,11 @@ export default class LogoEffect {
       2000, // 2 second zoom
       this.cameraController.easeInCubic,
       () => {
-        console.log("✅ Camera zoom complete! Starting white flash...");
-        this.startWhiteFlash();
+        console.log("✅ Camera zoom complete! Transition ready...");
+        // ✅ REMOVED: White flash - let scene transition handle fade
+        this.zoomComplete = true;
       }
     );
-  }
-
-  startWhiteFlash() {
-    // Create white flash overlay
-    const flash = document.createElement("div");
-    flash.style.position = "fixed";
-    flash.style.top = "0";
-    flash.style.left = "0";
-    flash.style.width = "100%";
-    flash.style.height = "100%";
-    flash.style.backgroundColor = "white";
-    flash.style.opacity = "0";
-    flash.style.transition = "opacity 500ms ease";
-    flash.style.pointerEvents = "none";
-    flash.style.zIndex = "9999";
-    flash.id = "white-flash";
-
-    document.body.appendChild(flash);
-
-    // Fade in white
-    setTimeout(() => {
-      flash.style.opacity = "1";
-    }, 10);
-
-    // After white flash, trigger transition
-    setTimeout(() => {
-      console.log("✅ White flash complete! Ready to transition...");
-      this.zoomComplete = true; // Signal that we're ready to transition
-
-      // Remove flash after a moment
-      setTimeout(() => {
-        flash.remove();
-      }, 500);
-    }, 1000); // White flash duration
   }
 
   reset() {

@@ -183,8 +183,7 @@ export default class OpeningScene extends BaseScene {
     console.log("  4. Black hole appears behind logo");
     console.log("  5. Logo gets sucked into black hole");
     console.log("  6. Camera zooms into black hole");
-    console.log("  7. White flash");
-    console.log("  8. Transition to next scene");
+    console.log("  7. Transition to next scene (smooth fade)");
     console.log("");
     console.log("💡 TIP: Press SPACE to start!");
     console.log("========================================");
@@ -529,36 +528,16 @@ export default class OpeningScene extends BaseScene {
 
   // ✅ NEW: Hide opening scene (called when transitioning to next scene)
   hideOpeningScene() {
-    console.log("👁️ Hiding opening scene...");
+    console.log("👁️ Hiding opening scene for transition...");
 
-    // Hide models
-    if (this.cityModel) this.cityModel.visible = false;
-    if (this.pacmanModel) this.pacmanModel.visible = false;
-
-    // Turn off lights
-    if (this.ambientLight) this.ambientLight.intensity = 0;
-    if (this.mainLight) this.mainLight.intensity = 0;
-    if (this.fillLight) this.fillLight.intensity = 0;
-    if (this.pacmanSpotlight) this.pacmanSpotlight.intensity = 0;
-
-    this.streetLights.forEach((sl) => {
-      sl.light.intensity = 0;
-    });
-
-    // Hide effects
-    if (this.rainEffect && this.rainEffect.particleSystem) {
-      this.rainEffect.particleSystem.visible = false;
-    }
+    // Keep scene visible but prepare for fade
+    // Don't hide models yet - let SceneManager fade handle it
 
     if (this.logoEffect) {
       this.logoEffect.hide();
     }
 
-    // Hide background/fog
-    this.scene.background = new THREE.Color(0x000000);
-    this.scene.fog = null;
-
-    console.log("✅ Opening scene hidden (not disposed)");
+    console.log("✅ Opening scene ready for fade transition");
   }
 
   // ✅ NEW: Show opening scene and reset state (called when entering scene)
@@ -697,14 +676,13 @@ export default class OpeningScene extends BaseScene {
 
       // ✅ Check if zoom complete - trigger transition to next scene
       if (this.logoEffect.zoomComplete && !this.hasTransitioned) {
-        console.log("🎬 Zoom complete! Preparing transition to next scene...");
+        console.log("🎬 Zoom complete! Starting smooth transition...");
         this.hasTransitioned = true; // Prevent multiple triggers
 
-        // ✅ HIDE (not dispose) opening scene
+        // ✅ SMOOTH: Don't hide scene, let fade transition handle it
         setTimeout(() => {
-          this.hideOpeningScene(); // ✅ Changed from disposeOpeningScene()
           this.transitionToNextScene();
-        }, 1500); // Wait for white flash to complete
+        }, 500); // Short delay for effect
       }
     }
 
@@ -717,7 +695,7 @@ export default class OpeningScene extends BaseScene {
     }
   }
 
-  // ✅ Transition to next scene
+  // ✅ FIXED: Smooth transition without glitches
   transitionToNextScene() {
     console.log("🎬 Transitioning to next scene...");
 
@@ -741,7 +719,10 @@ export default class OpeningScene extends BaseScene {
       return;
     }
 
-    // Perform transition
+    // ✅ Prepare opening scene for fade (but don't hide yet)
+    this.hideOpeningScene();
+
+    // ✅ Let SceneManager handle the smooth fade transition
     app.sceneManager.switchTo(nextSceneName, "fade");
   }
 
