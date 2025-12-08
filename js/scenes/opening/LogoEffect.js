@@ -265,9 +265,9 @@ export default class LogoEffect {
 
     // Zoom to black hole position (very close)
     this.cameraController.moveTo(
-      new THREE.Vector3(blackHolePos.x, blackHolePos.y, blackHolePos.z + 2), // Close to black hole
+      new THREE.Vector3(blackHolePos.x, blackHolePos.y, blackHolePos.z + 0), // Close to black hole
       blackHolePos,
-      1000, // 1 second fast zoom
+      5000, // 1 second fast zoom
       this.cameraController.easeInCubic,
       () => {
         console.log("✅ Camera zoom complete!");
