@@ -5,7 +5,6 @@ import BaseScene from "../BaseScene.js";
 import config from "./config.js";
 import RainEffect from "./RainEffect.js";
 import PacmanController from "./PacmanController.js";
-
 import LogoEffect from "./LogoEffect.js";
 
 export default class OpeningScene extends BaseScene {
@@ -138,7 +137,7 @@ export default class OpeningScene extends BaseScene {
       this.rainEffect.init();
     }
 
-    // ✅ Setup Logo Effect (gets eaten by Pacman)
+    // ✅ Setup Logo Effect (appears after scene hidden)
     if (this.config.logo) {
       this.logoEffect = new LogoEffect(this.scene, this.config.logo);
       await this.logoEffect.init();
@@ -185,7 +184,7 @@ export default class OpeningScene extends BaseScene {
     console.log("  [9] Neon -          [0] Neon +");
     console.log("");
     console.log("🎮 PACMAN ANIMATION:");
-    console.log("  [SPACE] Start Pacman walk");
+    console.log("  [SPACE] Start Pacman walk + Show Logo");
     console.log("  [X] Stop animation");
     console.log("  [C] Reset to start");
     console.log("");
@@ -198,6 +197,7 @@ export default class OpeningScene extends BaseScene {
     console.log("  - Spotlight follows Pacman");
     console.log("  - Progressive brightness");
     console.log("  - Street lights auto-on (collision)");
+    console.log("  - Logo appears and gets eaten by Pacman");
     console.log("  - Continuous shadow coverage");
     console.log("");
     console.log("💡 TIP: Press SPACE to start!");
@@ -400,6 +400,9 @@ export default class OpeningScene extends BaseScene {
       if (key === " ") {
         if (this.pacmanController) {
           this.pacmanController.start();
+
+          // ✅ Logo will show AFTER Pacman finishes (not now)
+          console.log("🎬 Pacman animation started!");
         }
       }
       if (key === "x" || key === "X") {
@@ -410,9 +413,30 @@ export default class OpeningScene extends BaseScene {
       if (key === "c" || key === "C") {
         if (this.pacmanController) {
           this.pacmanController.reset();
-          // Reset lights too
+
+          // ✅ Restore original background color
+          this.scene.background = new THREE.Color(0x0a0015); // Dark purple
+
+          // ✅ Restore fog
+          this.scene.fog = new THREE.Fog(
+            this.config.lighting.fog.color,
+            this.config.lighting.fog.near,
+            this.config.lighting.fog.far
+          );
+
+          // ✅ Restore scene visibility
+          if (this.cityModel) this.cityModel.visible = true;
+          if (this.pacmanModel) this.pacmanModel.visible = true;
+
+          // Restore rain
+          if (this.rainEffect && this.rainEffect.particleSystem) {
+            this.rainEffect.particleSystem.visible = true;
+          }
+
+          // Reset lights
           this.resetCinematicLights();
-          // ✅ Reset logo too
+
+          // ✅ Reset logo
           if (this.logoEffect) {
             this.logoEffect.reset();
           }
@@ -559,6 +583,44 @@ export default class OpeningScene extends BaseScene {
     // ✅ Update Pacman movement
     if (this.pacmanController) {
       this.pacmanController.update(deltaTime);
+
+      // ✅ Check if Pacman finished - HIDE SCENE, SHOW LOGO!
+      if (
+        !this.pacmanController.isAnimating &&
+        this.pacmanController.hasFinished &&
+        this.logoEffect &&
+        !this.logoEffect.isVisible
+      ) {
+        console.log("🎬 Pacman finished! Hiding scene objects...");
+
+        // ✅ Change background to PURE BLACK
+        this.scene.background = new THREE.Color(0x000000);
+
+        // ✅ Remove fog (so it's completely black)
+        this.scene.fog = null;
+
+        // ✅ HIDE ALL SCENE OBJECTS (unrender)
+        if (this.cityModel) this.cityModel.visible = false;
+        if (this.pacmanModel) this.pacmanModel.visible = false;
+
+        // Hide lights (make scene darker)
+        if (this.ambientLight) this.ambientLight.intensity = 0;
+        if (this.mainLight) this.mainLight.intensity = 0;
+        if (this.fillLight) this.fillLight.intensity = 0;
+        if (this.pacmanSpotlight) this.pacmanSpotlight.intensity = 0;
+        this.streetLights.forEach((sl) => (sl.light.intensity = 0));
+
+        // Hide rain
+        if (this.rainEffect && this.rainEffect.particleSystem) {
+          this.rainEffect.particleSystem.visible = false;
+        }
+
+        // ✅ Now show logo (camera already in dark position)
+        setTimeout(() => {
+          console.log("✨ Showing logo!");
+          this.logoEffect.show();
+        }, 500); // Small delay for dramatic effect
+      }
     }
 
     // ✅ Update rain effect
@@ -566,9 +628,9 @@ export default class OpeningScene extends BaseScene {
       this.rainEffect.update(deltaTime);
     }
 
-    // ✅ Update logo effect (pass Pacman position for collision)
-    if (this.logoEffect && this.pacmanModel) {
-      this.logoEffect.update(deltaTime, this.pacmanModel.position);
+    // ✅ Update logo effect
+    if (this.logoEffect) {
+      this.logoEffect.update(deltaTime);
     }
 
     // ✅ Update Cinematic Lighting System
@@ -599,23 +661,6 @@ export default class OpeningScene extends BaseScene {
       this.pacmanSpotlight.target.position.copy(pacmanPos);
       this.pacmanSpotlight.target.updateMatrixWorld();
     }
-
-    // ============================================
-    // B) PROGRESSIVE BRIGHTNESS (based on progress)
-    // ============================================
-    // ⚠️ DISABLED - Keep scene dark
-    // const progress = this.pacmanController.getProgress();
-
-    // // Gradually increase ambient and main lights
-    // const targetAmbient = 0.1 + progress * 0.3; // 0.1 → 0.4
-    // const targetMain = 0.2 + progress * 0.8; // 0.2 → 1.0
-    // const targetFill = 0.2 + progress * 0.4; // 0.2 → 0.6
-
-    // // Smooth lerp
-    // this.ambientLight.intensity +=
-    //   (targetAmbient - this.ambientLight.intensity) * 0.05;
-    // this.mainLight.intensity += (targetMain - this.mainLight.intensity) * 0.05;
-    // this.fillLight.intensity += (targetFill - this.fillLight.intensity) * 0.05;
 
     // ============================================
     // C) STREET LIGHTS AUTO-ON (Collision Detection)

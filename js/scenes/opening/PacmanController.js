@@ -7,6 +7,7 @@ export default class PacmanController {
 
     // Animation state
     this.isAnimating = false;
+    this.hasFinished = false; // ✅ Track if animation completed
     this.currentStep = 0;
     this.elapsedTime = 0;
 
@@ -38,6 +39,7 @@ export default class PacmanController {
   start() {
     console.log("🎬 Pacman animation started!");
     this.isAnimating = true;
+    this.hasFinished = false; // ✅ Reset finish flag
     this.currentStep = 0;
     this.elapsedTime = 0;
 
@@ -58,6 +60,7 @@ export default class PacmanController {
   reset() {
     this.currentStep = 0;
     this.elapsedTime = 0;
+    this.hasFinished = false; // ✅ Reset finish flag
     const firstStep = this.path[0];
     this.pacman.position.set(
       firstStep.from.x,
@@ -70,8 +73,11 @@ export default class PacmanController {
   update(deltaTime) {
     if (!this.isAnimating) return;
     if (this.currentStep >= this.path.length) {
-      // Animation complete
-      console.log("✅ Pacman animation complete!");
+      // ✅ Animation complete - set finish flag
+      if (!this.hasFinished) {
+        console.log("✅ Pacman animation complete!");
+        this.hasFinished = true; // ✅ Mark as finished
+      }
       this.isAnimating = false;
       return;
     }

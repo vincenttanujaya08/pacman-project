@@ -59,10 +59,10 @@ export default {
     lookAt: { x: 60, y: 0, z: 0 },
   },
 
+  // ✅ Logo - NEW POSITION at END for celebration!
   logo: {
-    position: { x: 60, y: 10, z: -50 }, // In middle of first path
-    fadeInDuration: 5000, // 2 seconds fade in
-    eatDistance: 8, // Distance at which Pacman eats it
+    position: { x: 60, y: 5, z: -40 }, // ✅ AT END! Higher (y=15) untuk visibility
+    fadeInDuration: 2000, // 2 seconds fade in as celebration
   },
 
   // Animation timing (for later)

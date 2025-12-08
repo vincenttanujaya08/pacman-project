@@ -11,89 +11,88 @@ export default class LogoEffect {
 
     // Animation state
     this.opacity = 0;
-    this.isEaten = false;
     this.fadeInComplete = false;
+    this.isVisible = false; // ✅ Logo starts hidden until animation ends
 
     // Timing
     this.fadeInDuration = 2000; // 2 seconds to fade in
     this.fadeInElapsed = 0;
-    this.eatDistance = 5; // Distance at which Pacman "eats" logo
+    // eatDistance removed - no longer needed for collision
   }
 
   async init() {
-    // Create logo plane with Pac-Man texture
-    const geometry = new THREE.PlaneGeometry(15, 15); // Large billboard
+    // ✅ Load logo image texture from uploaded file
+    const textureLoader = new THREE.TextureLoader();
 
-    // Create canvas texture for Pac-Man logo
-    const canvas = document.createElement("canvas");
-    canvas.width = 512;
-    canvas.height = 512;
-    const ctx = canvas.getContext("2d");
+    return new Promise((resolve, reject) => {
+      textureLoader.load(
+        "assets/images/logo.png", // ✅ Path to your uploaded logo
+        (texture) => {
+          // ✅ FIX COLOR: Set texture encoding to preserve original colors
+          texture.encoding = THREE.sRGBEncoding;
 
-    // Draw classic Pac-Man logo
-    this.drawPacmanLogo(ctx, canvas.width, canvas.height);
+          // Create logo plane with loaded texture
+          const geometry = new THREE.PlaneGeometry(35, 10); // ✅ Wider logo (20 width, 5 height)
 
-    const texture = new THREE.CanvasTexture(canvas);
+          const material = new THREE.MeshBasicMaterial({
+            map: texture,
+            transparent: true,
+            opacity: 0, // Start invisible
+            side: THREE.DoubleSide,
+            depthWrite: false, // Prevent z-fighting
+          });
 
-    const material = new THREE.MeshBasicMaterial({
-      map: texture,
-      transparent: true,
-      opacity: 0, // Start invisible
-      side: THREE.DoubleSide,
-      depthWrite: false, // Prevent z-fighting
+          this.logoMesh = new THREE.Mesh(geometry, material);
+
+          // Position in center of path (where Pacman will pass)
+          this.logoMesh.position.set(
+            this.config.position.x,
+            this.config.position.y,
+            this.config.position.z
+          );
+
+          // ✅ Initially hidden (will show when animation starts)
+          this.logoMesh.visible = false;
+
+          // ✅ STATIC: No rotation, face camera directly
+          this.logoMesh.rotation.y = Math.PI;
+
+          this.scene.add(this.logoMesh);
+
+          console.log("✅ Logo effect created with uploaded image");
+          resolve();
+        },
+        undefined,
+        (error) => {
+          console.error("❌ Error loading logo image:", error);
+          console.log("💡 Make sure logo.png is in assets/images/ folder");
+          reject(error);
+        }
+      );
     });
-
-    this.logoMesh = new THREE.Mesh(geometry, material);
-
-    // Position in center of path (where Pacman will pass)
-    this.logoMesh.position.set(
-      this.config.position.x,
-      this.config.position.y,
-      this.config.position.z
-    );
-
-    // Rotate to face camera
-    this.logoMesh.rotation.y = 0;
-
-    this.scene.add(this.logoMesh);
-
-    console.log("✅ Logo effect created");
   }
 
-  drawPacmanLogo(ctx, width, height) {
-    const centerX = width / 2;
-    const centerY = height / 2;
-    const radius = width * 0.4;
+  // ✅ Show logo when animation starts
+  show() {
+    if (this.logoMesh) {
+      this.logoMesh.visible = true;
+      this.isVisible = true;
+      this.fadeInElapsed = 0;
+      this.fadeInComplete = false;
+      console.log("✅ Logo animation started");
+    }
+  }
 
-    // Clear canvas
-    ctx.clearRect(0, 0, width, height);
-
-    // Draw yellow Pac-Man circle
-    ctx.fillStyle = "#FFD700";
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, radius, 0.2 * Math.PI, 1.8 * Math.PI);
-    ctx.lineTo(centerX, centerY);
-    ctx.closePath();
-    ctx.fill();
-
-    // Draw eye
-    ctx.fillStyle = "#000000";
-    ctx.beginPath();
-    ctx.arc(centerX, centerY - radius * 0.3, radius * 0.1, 0, 2 * Math.PI);
-    ctx.fill();
-
-    // Add "PAC-MAN 45th" text
-    ctx.fillStyle = "#FFFFFF";
-    ctx.font = "bold 48px Arial";
-    ctx.textAlign = "center";
-    ctx.fillText("PAC-MAN", centerX, centerY + radius + 60);
-
-    ctx.font = "bold 36px Arial";
-    ctx.fillText("45th Anniversary", centerX, centerY + radius + 100);
+  // ✅ Hide logo
+  hide() {
+    if (this.logoMesh) {
+      this.logoMesh.visible = false;
+      this.isVisible = false;
+    }
   }
 
   update(deltaTime, pacmanPosition) {
-    if (!this.logoMesh || this.isEaten) return;
+    if (!this.logoMesh || !this.isVisible) return;
 
     // Phase 1: Fade in gradually
     if (!this.fadeInComplete) {
@@ -106,50 +105,24 @@ export default class LogoEffect {
 
       if (progress >= 1) {
         this.fadeInComplete = true;
-        console.log("✅ Logo fade in complete");
+        console.log("✅ Logo fade in complete - Celebration!");
       }
 
       return;
     }
 
-    // Phase 2: Check collision with Pacman
-    if (pacmanPosition) {
-      const distance = this.logoMesh.position.distanceTo(pacmanPosition);
-
-      // Pacman is approaching - start fading out
-      if (distance < this.eatDistance) {
-        // Fade out based on distance (closer = more transparent)
-        const fadeProgress = 1 - distance / this.eatDistance;
-        this.opacity = 1 - fadeProgress;
-        this.logoMesh.material.opacity = this.opacity;
-
-        // Shrink logo as it's eaten
-        const scale = 1 - fadeProgress * 0.5;
-        this.logoMesh.scale.set(scale, scale, scale);
-
-        // Mark as eaten when fully transparent
-        if (this.opacity <= 0.01) {
-          this.isEaten = true;
-          this.logoMesh.visible = false;
-          console.log("🍴 Logo eaten by Pacman!");
-        }
-      }
-    }
-
-    // Rotate logo slowly for visual interest
-    if (!this.isEaten) {
-      this.logoMesh.rotation.y += 0.001;
-    }
+    // ✅ Logo stays visible as celebration (no collision, no eating)
+    // Logo just fades in and stays there
   }
 
   reset() {
     this.opacity = 0;
-    this.isEaten = false;
     this.fadeInComplete = false;
     this.fadeInElapsed = 0;
+    this.isVisible = false; // ✅ Hide on reset
 
     if (this.logoMesh) {
-      this.logoMesh.visible = true;
+      this.logoMesh.visible = false; // ✅ Hidden until show() is called
       this.logoMesh.material.opacity = 0;
       this.logoMesh.scale.set(1, 1, 1);
     }
