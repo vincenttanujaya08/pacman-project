@@ -26,14 +26,14 @@ export default class OpeningScene extends BaseScene {
     this.neonLight = null;
 
     // ✅ Cinematic Lighting System
-    this.pacmanSpotlight = null; // Follow Pacman
-    this.streetLights = []; // Area-based lights (collision zones)
+    this.pacmanSpotlight = null;
+    this.streetLights = [];
 
     // Effects
     this.rainEffect = null;
-    this.logoEffect = null; // ✅ Logo
+    this.logoEffect = null;
 
-    // Setup mode (for adjusting)
+    // Setup mode
     this.setupMode = true;
     this.currentScale = {
       city: 0.5,
@@ -70,7 +70,6 @@ export default class OpeningScene extends BaseScene {
         this.config.scale.city.z
       );
 
-      // Enable shadows
       this.cityModel.traverse((child) => {
         if (child.isMesh) {
           child.castShadow = true;
@@ -99,7 +98,6 @@ export default class OpeningScene extends BaseScene {
         this.config.scale.pacman.z
       );
 
-      // Enable shadows
       this.pacmanModel.traverse((child) => {
         if (child.isMesh) {
           child.castShadow = true;
@@ -110,7 +108,6 @@ export default class OpeningScene extends BaseScene {
       this.addObject(this.pacmanModel, "pacman");
       console.log("✅ Pacman loaded");
 
-      // Setup animation (mouth open/close)
       if (pacmanGltf.animations && pacmanGltf.animations.length > 0) {
         this.mixer = new THREE.AnimationMixer(this.pacmanModel);
         const action = this.mixer.clipAction(pacmanGltf.animations[0]);
@@ -118,7 +115,6 @@ export default class OpeningScene extends BaseScene {
         console.log("✅ Pacman mouth animation playing");
       }
 
-      // ✅ Setup Pacman movement controller
       this.pacmanController = new PacmanController(this.pacmanModel);
       console.log("✅ Pacman movement controller ready");
     } catch (error) {
@@ -137,14 +133,20 @@ export default class OpeningScene extends BaseScene {
       this.rainEffect.init();
     }
 
-    // ✅ Setup Logo Effect (appears after scene hidden)
+    // ✅ Setup Logo Effect with camera & cameraController
     if (this.config.logo) {
-      this.logoEffect = new LogoEffect(this.scene, this.config.logo);
+      const app = window.app;
+      this.logoEffect = new LogoEffect(
+        this.scene,
+        this.config.logo,
+        this.camera,
+        app ? app.cameraController : null
+      );
       await this.logoEffect.init();
       console.log("✅ Logo effect ready");
     }
 
-    // Setup camera - use exact position method to avoid damping drift
+    // Setup camera
     const app = window.app;
     if (app && app.cameraController) {
       app.cameraController.setExactPosition(
@@ -152,7 +154,6 @@ export default class OpeningScene extends BaseScene {
         this.config.camera.lookAt
       );
     } else {
-      // Fallback if app not available yet
       this.camera.position.set(
         this.config.camera.initial.x,
         this.config.camera.initial.y,
@@ -184,7 +185,7 @@ export default class OpeningScene extends BaseScene {
     console.log("  [9] Neon -          [0] Neon +");
     console.log("");
     console.log("🎮 PACMAN ANIMATION:");
-    console.log("  [SPACE] Start Pacman walk + Show Logo");
+    console.log("  [SPACE] Start animation sequence");
     console.log("  [X] Stop animation");
     console.log("  [C] Reset to start");
     console.log("");
@@ -193,12 +194,14 @@ export default class OpeningScene extends BaseScene {
     console.log("  [R] Reset to default");
     console.log("  [F] Toggle Free Mode");
     console.log("");
-    console.log("💡 CINEMATIC FEATURES:");
-    console.log("  - Spotlight follows Pacman");
-    console.log("  - Progressive brightness");
-    console.log("  - Street lights auto-on (collision)");
-    console.log("  - Logo appears and gets eaten by Pacman");
-    console.log("  - Continuous shadow coverage");
+    console.log("💡 SEQUENCE:");
+    console.log("  1. Pacman walks with spotlight");
+    console.log("  2. Scene fades to black");
+    console.log("  3. Logo appears and fades in");
+    console.log("  4. Black hole appears behind logo");
+    console.log("  5. Logo gets sucked into black hole");
+    console.log("  6. Camera zooms into black hole");
+    console.log("  7. Transition to next scene");
     console.log("");
     console.log("💡 TIP: Press SPACE to start!");
     console.log("========================================");
@@ -206,28 +209,24 @@ export default class OpeningScene extends BaseScene {
   }
 
   setupLighting() {
-    // ✅ Night atmosphere background
-    this.scene.background = new THREE.Color(0x0a0015); // Very dark purple
+    this.scene.background = new THREE.Color(0x0a0015);
 
-    // ✅ Fog for depth and atmosphere
     this.scene.fog = new THREE.Fog(
       this.config.lighting.fog.color,
       this.config.lighting.fog.near,
       this.config.lighting.fog.far
     );
 
-    // Ambient Light (dark purple) - START VERY LOW
     this.ambientLight = new THREE.AmbientLight(
       this.config.lighting.ambient.color,
-      0.1 // ✅ Very low at start, will increase
+      0.1
     );
     this.scene.add(this.ambientLight);
     this.lights.push(this.ambientLight);
 
-    // Main Directional Light (purple-ish) - START LOW
     this.mainLight = new THREE.DirectionalLight(
       this.config.lighting.main.color,
-      0.2 // ✅ Low at start
+      0.2
     );
     this.mainLight.position.set(
       this.config.lighting.main.position.x,
@@ -236,24 +235,22 @@ export default class OpeningScene extends BaseScene {
     );
     this.mainLight.castShadow = true;
 
-    // ✅ FIX SHADOW CLIPPING: Enlarge shadow camera frustum
-    this.mainLight.shadow.mapSize.width = 4096; // Higher quality
+    this.mainLight.shadow.mapSize.width = 4096;
     this.mainLight.shadow.mapSize.height = 4096;
-    this.mainLight.shadow.camera.left = -150; // ✅ Much wider coverage
+    this.mainLight.shadow.camera.left = -150;
     this.mainLight.shadow.camera.right = 150;
     this.mainLight.shadow.camera.top = 150;
     this.mainLight.shadow.camera.bottom = -150;
     this.mainLight.shadow.camera.near = 0.5;
     this.mainLight.shadow.camera.far = 500;
-    this.mainLight.shadow.bias = -0.0001; // ✅ Prevent shadow acne
+    this.mainLight.shadow.bias = -0.0001;
 
     this.scene.add(this.mainLight);
     this.lights.push(this.mainLight);
 
-    // Fill Light (Dark yellow/gold)
     this.fillLight = new THREE.DirectionalLight(
       this.config.lighting.fill.color,
-      0.2 // ✅ Low at start
+      0.2
     );
     this.fillLight.position.set(
       this.config.lighting.fill.position.x,
@@ -263,13 +260,10 @@ export default class OpeningScene extends BaseScene {
     this.scene.add(this.fillLight);
     this.lights.push(this.fillLight);
 
-    console.log("✅ Base lighting setup (continuous shadows)");
+    console.log("✅ Base lighting setup");
   }
 
   setupCinematicLights() {
-    // ============================================
-    // A) SPOTLIGHT FOLLOW PACMAN (Main actor light)
-    // ============================================
     this.pacmanSpotlight = new THREE.SpotLight(
       0xffdd00,
       3,
@@ -284,32 +278,27 @@ export default class OpeningScene extends BaseScene {
     this.scene.add(this.pacmanSpotlight);
     this.scene.add(this.pacmanSpotlight.target);
 
-    // ============================================
-    // C) STREET LIGHTS (Area-based, collision detection)
-    // ============================================
-    // Place lights along Pacman's path
     const streetLightPositions = [
-      { x: 15, z: 6.5 }, // Along first path
+      { x: 15, z: 6.5 },
       { x: 30, z: 6.5 },
       { x: 45, z: 6.5 },
-      { x: 60, z: 6.5 }, // At turn point
-      { x: 60, z: -20 }, // Along second path
+      { x: 60, z: 6.5 },
+      { x: 60, z: -20 },
       { x: 60, z: -50 },
-      { x: 60, z: -80 }, // At end
+      { x: 60, z: -80 },
     ];
 
     streetLightPositions.forEach((pos, index) => {
-      const light = new THREE.PointLight(0xffaa00, 0, 20); // Start OFF (intensity = 0)
+      const light = new THREE.PointLight(0xffaa00, 0, 20);
       light.position.set(pos.x, 10, pos.z);
       light.castShadow = true;
 
-      // Store light with collision data
       this.streetLights.push({
         light: light,
         position: new THREE.Vector3(pos.x, 0, pos.z),
-        triggerRadius: 15, // ✅ Collision detection radius
+        triggerRadius: 15,
         isOn: false,
-        targetIntensity: 0.8, // ✅ REDUCED from 2.5 to 0.8 (lebih redup!)
+        targetIntensity: 0.8,
         index: index,
       });
 
@@ -325,7 +314,6 @@ export default class OpeningScene extends BaseScene {
     this.onKeyPress = (e) => {
       const key = e.key;
 
-      // Scale controls
       if (key === "1") {
         this.currentScale.city -= 0.1;
         this.updateCityScale();
@@ -343,7 +331,6 @@ export default class OpeningScene extends BaseScene {
         this.updatePacmanScale();
       }
 
-      // Lighting controls
       if (key === "5") {
         this.ambientLight.intensity = Math.max(
           0,
@@ -385,7 +372,6 @@ export default class OpeningScene extends BaseScene {
         this.updateInfo();
       }
 
-      // Utility
       if (key === "p" || key === "P") {
         this.printCurrentConfig();
       }
@@ -396,13 +382,10 @@ export default class OpeningScene extends BaseScene {
         this.toggleFreeMode();
       }
 
-      // ✅ Pacman animation controls
       if (key === " ") {
         if (this.pacmanController) {
           this.pacmanController.start();
-
-          // ✅ Logo will show AFTER Pacman finishes (not now)
-          console.log("🎬 Pacman animation started!");
+          console.log("🎬 Animation sequence started!");
         }
       }
       if (key === "x" || key === "X") {
@@ -414,29 +397,23 @@ export default class OpeningScene extends BaseScene {
         if (this.pacmanController) {
           this.pacmanController.reset();
 
-          // ✅ Restore original background color
-          this.scene.background = new THREE.Color(0x0a0015); // Dark purple
+          this.scene.background = new THREE.Color(0x0a0015);
 
-          // ✅ Restore fog
           this.scene.fog = new THREE.Fog(
             this.config.lighting.fog.color,
             this.config.lighting.fog.near,
             this.config.lighting.fog.far
           );
 
-          // ✅ Restore scene visibility
           if (this.cityModel) this.cityModel.visible = true;
           if (this.pacmanModel) this.pacmanModel.visible = true;
 
-          // Restore rain
           if (this.rainEffect && this.rainEffect.particleSystem) {
             this.rainEffect.particleSystem.visible = true;
           }
 
-          // Reset lights
           this.resetCinematicLights();
 
-          // ✅ Reset logo
           if (this.logoEffect) {
             this.logoEffect.reset();
           }
@@ -448,12 +425,10 @@ export default class OpeningScene extends BaseScene {
   }
 
   resetCinematicLights() {
-    // Reset ambient and main lights
     this.ambientLight.intensity = 0.1;
     this.mainLight.intensity = 0.2;
     this.fillLight.intensity = 0.2;
 
-    // Turn off all street lights
     this.streetLights.forEach((sl) => {
       sl.light.intensity = 0;
       sl.isOn = false;
@@ -575,65 +550,72 @@ export default class OpeningScene extends BaseScene {
 
     if (!this.isActive) return;
 
-    // Update mixer for pacman animation (mouth)
     if (this.mixer) {
       this.mixer.update(deltaTime / 1000);
     }
 
-    // ✅ Update Pacman movement
     if (this.pacmanController) {
       this.pacmanController.update(deltaTime);
 
-      // ✅ Check if Pacman finished - HIDE SCENE, SHOW LOGO!
       if (
         !this.pacmanController.isAnimating &&
         this.pacmanController.hasFinished &&
         this.logoEffect &&
         !this.logoEffect.isVisible
       ) {
-        console.log("🎬 Pacman finished! Hiding scene objects...");
+        console.log("🎬 Pacman finished! Hiding scene...");
 
-        // ✅ Change background to PURE BLACK
         this.scene.background = new THREE.Color(0x000000);
-
-        // ✅ Remove fog (so it's completely black)
         this.scene.fog = null;
 
-        // ✅ HIDE ALL SCENE OBJECTS (unrender)
         if (this.cityModel) this.cityModel.visible = false;
         if (this.pacmanModel) this.pacmanModel.visible = false;
 
-        // Hide lights (make scene darker)
         if (this.ambientLight) this.ambientLight.intensity = 0;
         if (this.mainLight) this.mainLight.intensity = 0;
         if (this.fillLight) this.fillLight.intensity = 0;
         if (this.pacmanSpotlight) this.pacmanSpotlight.intensity = 0;
         this.streetLights.forEach((sl) => (sl.light.intensity = 0));
 
-        // Hide rain
         if (this.rainEffect && this.rainEffect.particleSystem) {
           this.rainEffect.particleSystem.visible = false;
         }
 
-        // ✅ Now show logo (camera already in dark position)
         setTimeout(() => {
           console.log("✨ Showing logo!");
+
+          // ✅ Switch to CINEMATIC mode for camera zoom to work
+          const app = window.app;
+          if (app && app.cameraController) {
+            app.cameraController.setMode("cinematic");
+            console.log("📹 Switched to CINEMATIC mode for zoom");
+          }
+
           this.logoEffect.show();
-        }, 500); // Small delay for dramatic effect
+        }, 500);
       }
     }
 
-    // ✅ Update rain effect
     if (this.rainEffect) {
       this.rainEffect.update(deltaTime);
     }
 
-    // ✅ Update logo effect
     if (this.logoEffect) {
       this.logoEffect.update(deltaTime);
+
+      // ✅ Check if zoom complete - trigger transition to next scene
+      if (this.logoEffect.zoomComplete) {
+        console.log("🎬 Zoom complete! Transitioning to next scene...");
+        this.logoEffect.zoomComplete = false; // Prevent multiple triggers
+
+        // TODO: Transition to next scene
+        // Example:
+        // setTimeout(() => {
+        //   window.app.sceneManager.switchTo("nextScene", "fade");
+        // }, 500);
+      }
     }
 
-    // ✅ Update Cinematic Lighting System
     if (
       this.pacmanModel &&
       this.pacmanController &&
@@ -646,54 +628,37 @@ export default class OpeningScene extends BaseScene {
   updateCinematicLighting() {
     const pacmanPos = this.pacmanModel.position;
 
-    // ============================================
-    // A) SPOTLIGHT FOLLOW PACMAN
-    // ============================================
     if (this.pacmanSpotlight) {
-      // Spotlight position above Pacman
       this.pacmanSpotlight.position.set(
         pacmanPos.x,
         pacmanPos.y + 20,
         pacmanPos.z
       );
 
-      // Target Pacman
       this.pacmanSpotlight.target.position.copy(pacmanPos);
       this.pacmanSpotlight.target.updateMatrixWorld();
     }
 
-    // ============================================
-    // C) STREET LIGHTS AUTO-ON (Collision Detection)
-    // ============================================
     this.streetLights.forEach((streetLight) => {
-      // Calculate distance from Pacman to light
       const distance = pacmanPos.distanceTo(streetLight.position);
 
-      // ✅ COLLISION DETECTION
       if (distance < streetLight.triggerRadius) {
-        // Pacman entered trigger zone! Turn light ON
         if (!streetLight.isOn) {
           streetLight.isOn = true;
-          console.log(
-            `💡 Street light ${streetLight.index} ON (collision detected)`
-          );
+          console.log(`💡 Street light ${streetLight.index} ON`);
           this.updateInfo();
         }
 
-        // Smoothly increase intensity
         if (streetLight.light.intensity < streetLight.targetIntensity) {
           streetLight.light.intensity += 0.1;
         }
       }
-
-      // Keep lights on once activated (don't turn off)
     });
   }
 
   exit() {
     super.exit();
 
-    // Remove info display
     if (this.infoElement) {
       this.infoElement.remove();
       this.infoElement = null;
@@ -701,28 +666,23 @@ export default class OpeningScene extends BaseScene {
   }
 
   dispose() {
-    // Remove keyboard listener
     document.removeEventListener("keypress", this.onKeyPress);
 
-    // Remove info display
     if (this.infoElement) {
       this.infoElement.remove();
       this.infoElement = null;
     }
 
-    // ✅ Dispose rain effect
     if (this.rainEffect) {
       this.rainEffect.dispose();
       this.rainEffect = null;
     }
 
-    // ✅ Dispose logo effect
     if (this.logoEffect) {
       this.logoEffect.dispose();
       this.logoEffect = null;
     }
 
-    // ✅ Dispose cinematic lights
     if (this.pacmanSpotlight) {
       this.scene.remove(this.pacmanSpotlight);
       this.scene.remove(this.pacmanSpotlight.target);
