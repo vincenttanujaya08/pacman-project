@@ -167,7 +167,7 @@ export default class OpeningScene extends BaseScene {
     console.log("  [9] Neon -          [0] Neon +");
     console.log("");
     console.log("🎮 PACMAN ANIMATION:");
-    console.log("  [SPACE] Start animation sequence");
+    console.log("  [B] Start animation sequence");
     console.log("  [X] Stop animation");
     console.log("  [C] Reset to start");
     console.log("");
@@ -185,7 +185,7 @@ export default class OpeningScene extends BaseScene {
     console.log("  6. Camera zooms into black hole");
     console.log("  7. Transition to next scene (smooth fade)");
     console.log("");
-    console.log("💡 TIP: Press SPACE to start!");
+    console.log("💡 TIP: Press B to start!");
     console.log("========================================");
     console.log("");
   }
