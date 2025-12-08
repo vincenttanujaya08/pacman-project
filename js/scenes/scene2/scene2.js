@@ -1,12 +1,14 @@
 // js/scenes/scene2/Scene2.js
 // Scene 2 - Using particles config from config.js
 // ✅ WITH APOCALYPSE MODE (Toggle with K key)
+// ✅ WITH CINEMATIC SEQUENCE (Trigger with SPACE key)
 
 import BaseScene from "../BaseScene.js";
 import config from "./config.js";
 import CameraMode from "./CameraMode.js";
 import LightParticles from "./LightParticles.js";
-import GhostController from "./GhostController.js"; // ✅ Ghost controller
+import GhostController from "./GhostController.js";
+import Scene2Cinematic from "./Scene2Cinematic.js";
 
 export default class Scene2 extends BaseScene {
   constructor(name, renderer, camera) {
@@ -16,12 +18,12 @@ export default class Scene2 extends BaseScene {
     this.forestModel = null;
     this.cameraMode = null;
     this.lightParticles = null;
-    this.ghostModel = null; // ✅ Ghost model
-    this.ghostController = null; // ✅ Ghost controller
-    this.ghostMixer = null; // ✅ Ghost animation mixer
-    this.ghostSpotlight = null; // ✅ Ghost dramatic red spotlight
-    this.ghostPointLight = null; // ✅ Ghost red aura point light
-    this.ghostRings = []; // ✅ Ghost rotating energy rings (Saturn style - smaller)
+    this.ghostModel = null;
+    this.ghostController = null;
+    this.ghostMixer = null;
+    this.ghostSpotlight = null;
+    this.ghostPointLight = null;
+    this.ghostRings = [];
     this.ambientLight = null;
     this.sunLight = null;
     this.fillLight = null;
@@ -32,9 +34,12 @@ export default class Scene2 extends BaseScene {
     this.infoElement = null;
     this.materialDarkness = 0.15;
 
-    // ✅ APOCALYPSE MODE
     this.isApocalypseMode = false;
 
+    // ✅ Cinematic controller
+    this.cinematic = null;
+
+    // ✅ Setup keyboard controls (but don't attach yet)
     this.setupKeyboardControls();
   }
 
@@ -43,14 +48,11 @@ export default class Scene2 extends BaseScene {
 
     console.log(`[${this.name}] Init started...`);
 
-    // Remove default lights
     this.lights.forEach((light) => this.scene.remove(light));
     this.lights = [];
 
-    // Setup background
     this.scene.background = new THREE.Color(this.config.background.color);
 
-    // Setup fog
     if (this.config.lighting.fog.enabled) {
       this.scene.fog = new THREE.Fog(
         this.config.lighting.fog.color,
@@ -59,10 +61,8 @@ export default class Scene2 extends BaseScene {
       );
     }
 
-    // Setup lighting
     this.setupLighting();
 
-    // ✅ Setup light particles FROM CONFIG
     if (this.config.lightParticles && this.config.lightParticles.enabled) {
       this.lightParticles = new LightParticles(
         this.scene,
@@ -76,15 +76,10 @@ export default class Scene2 extends BaseScene {
       );
     }
 
-    // Setup camera mode
     this.cameraMode = new CameraMode(this.scene, this.camera, this.renderer);
-
-    // ✅ START IN FPS MODE (not third person)
     this.cameraMode.setMode("fps");
-
     console.log("✅ Camera mode ready (FPS)");
 
-    // Load Forest model
     try {
       console.log("Loading forest model...");
       const forestGltf = await this.loadModel(this.config.models.forest);
@@ -108,7 +103,6 @@ export default class Scene2 extends BaseScene {
         this.config.scale.forest.z
       );
 
-      // Enable shadows
       this.forestModel.traverse((child) => {
         if (child.isMesh) {
           child.castShadow = true;
@@ -127,20 +121,17 @@ export default class Scene2 extends BaseScene {
       console.error("❌ Error loading forest:", error);
     }
 
-    // ✅ Load Ghost model
     try {
       console.log("Loading ghost model...");
       const ghostGltf = await this.loadModel(this.config.models.ghost);
       this.ghostModel = ghostGltf.scene;
 
-      // Set scale
       this.ghostModel.scale.set(
         this.config.scale.ghost.x,
         this.config.scale.ghost.y,
         this.config.scale.ghost.z
       );
 
-      // Enable shadows
       this.ghostModel.traverse((child) => {
         if (child.isMesh) {
           child.castShadow = true;
@@ -148,13 +139,11 @@ export default class Scene2 extends BaseScene {
         }
       });
 
-      // Position will be set relative to camera when entering scene
       this.ghostModel.visible = true;
 
       this.addObject(this.ghostModel, "ghost");
       console.log("✅ Ghost loaded");
 
-      // ✅ Setup ghost animation mixer (play built-in animations)
       if (ghostGltf.animations && ghostGltf.animations.length > 0) {
         this.ghostMixer = new THREE.AnimationMixer(this.ghostModel);
         const action = this.ghostMixer.clipAction(ghostGltf.animations[0]);
@@ -166,16 +155,25 @@ export default class Scene2 extends BaseScene {
         console.log("⚠️ No animations found in ghost model");
       }
 
-      // Setup ghost controller
       this.ghostController = new GhostController(this.ghostModel);
       console.log("✅ Ghost controller ready");
       console.log("💡 Press [G] to start ghost animation");
 
-      // ✅ Setup DRAMATIC RED lighting for ghost
       this.setupGhostLighting();
-
-      // ✅ Setup ghost aura effects (fog + rings)
       this.setupGhostAura();
+
+      // ✅ Setup cinematic controller
+      this.cinematic = new Scene2Cinematic(
+        this.camera,
+        this.cameraMode,
+        this.ghostModel,
+        this.ghostController,
+        this.ghostSpotlight,
+        this.ghostPointLight,
+        this.ghostRings
+      );
+      console.log("✅ Cinematic controller ready");
+      console.log("💡 Press [SPACE] to start cinematic sequence");
     } catch (error) {
       console.error("❌ Error loading ghost:", error);
     }
@@ -183,6 +181,7 @@ export default class Scene2 extends BaseScene {
     this.createInfoDisplay();
     console.log("✅ Scene 2 ready!");
     console.log("💡 Press [K] to toggle APOCALYPSE MODE");
+    console.log("💡 Press [SPACE] to start CINEMATIC");
   }
 
   setupLighting() {
@@ -229,23 +228,21 @@ export default class Scene2 extends BaseScene {
     this.lights.push(this.fillLight);
   }
 
-  // ✅ Setup DRAMATIC RED lighting for ghost (Option A: Horror/Sangar style)
   setupGhostLighting() {
     if (!this.ghostModel) return;
 
-    // 1. RED SPOTLIGHT from above (dramatic horror lighting)
     this.ghostSpotlight = new THREE.SpotLight(
-      0xff0000, // Red color
-      3.0, // Strong intensity
-      30, // Distance
-      Math.PI / 4, // Wide angle
-      0.5, // Penumbra (soft edges)
-      1 // Decay
+      0xff0000,
+      3.0,
+      30,
+      Math.PI / 4,
+      0.5,
+      1
     );
 
     this.ghostSpotlight.position.set(
       this.ghostModel.position.x,
-      this.ghostModel.position.y + 15, // 15 units above ghost
+      this.ghostModel.position.y + 15,
       this.ghostModel.position.z
     );
 
@@ -257,13 +254,7 @@ export default class Scene2 extends BaseScene {
     this.scene.add(this.ghostSpotlight);
     this.scene.add(this.ghostSpotlight.target);
 
-    // 2. RED POINT LIGHT (evil aura/glow around ghost)
-    this.ghostPointLight = new THREE.PointLight(
-      0xff0000, // Red color
-      2.0, // Medium intensity
-      25, // Radius
-      2 // Decay (how fast light fades)
-    );
+    this.ghostPointLight = new THREE.PointLight(0xff0000, 2.0, 25, 2);
 
     this.ghostPointLight.position.copy(this.ghostModel.position);
 
@@ -274,16 +265,14 @@ export default class Scene2 extends BaseScene {
     console.log("   - Red point light aura");
   }
 
-  // ✅ Setup ghost aura effects: Atom-style crossing rings (2 diagonal orbits)
   setupGhostAura() {
     if (!this.ghostModel) return;
 
     const ghostPos = this.ghostModel.position;
 
-    // 2 ATOM-STYLE RINGS (crossing diagonally like electron orbits)
     const ringConfigs = [
-      { radius: 4.5, thickness: 0.4, tilt: Math.PI / 4, speed: 0.6 }, // Tilted +45°
-      { radius: 4.5, thickness: 0.4, tilt: -Math.PI / 4, speed: -0.6 }, // Tilted -45° (opposite rotation)
+      { radius: 4.5, thickness: 0.4, tilt: Math.PI / 4, speed: 0.6 },
+      { radius: 4.5, thickness: 0.4, tilt: -Math.PI / 4, speed: -0.6 },
     ];
 
     ringConfigs.forEach((config, index) => {
@@ -305,9 +294,8 @@ export default class Scene2 extends BaseScene {
 
       const ring = new THREE.Mesh(ringGeometry, ringMaterial);
       ring.position.copy(ghostPos);
-      ring.rotation.x = config.tilt; // Diagonal tilt
+      ring.rotation.x = config.tilt;
 
-      // Store rotation speed
       ring.userData.rotationSpeed = config.speed;
 
       this.ghostRings.push(ring);
@@ -321,13 +309,11 @@ export default class Scene2 extends BaseScene {
   darkenForestMaterials() {
     if (!this.forestModel) return;
 
-    // ✅ ALWAYS use same brightness - don't change darkness in apocalypse mode!
     const brightness = this.materialDarkness;
 
     this.forestModel.traverse((child) => {
       if (!child.isMesh || !child.material) return;
 
-      // Clone material only once
       if (!child.material.userData.originalColor) {
         child.material = child.material.clone();
         child.material.userData.originalColor = child.material.color.clone();
@@ -338,16 +324,13 @@ export default class Scene2 extends BaseScene {
 
       mat.color.copy(originalColor).multiplyScalar(brightness);
 
-      // Remove emissive glow completely (forest should not glow)
       if ("emissive" in mat) {
         mat.emissive.setRGB(0, 0, 0);
       }
 
-      // Make shadows stronger
       if ("metalness" in mat) mat.metalness = 0.0;
       if ("roughness" in mat) mat.roughness = 1.0;
 
-      // No translucency (forest should look deep and dense)
       mat.transparent = false;
       mat.opacity = 1.0;
     });
@@ -359,50 +342,41 @@ export default class Scene2 extends BaseScene {
     );
   }
 
-  // ✅ TOGGLE APOCALYPSE MODE
   toggleApocalypseMode() {
     this.isApocalypseMode = !this.isApocalypseMode;
 
     if (this.isApocalypseMode) {
       console.log("🔥 APOCALYPSE MODE ACTIVATED");
 
-      // Background: keep black
       this.scene.background = new THREE.Color(0x000000);
 
-      // Fog: very subtle red tint (almost black)
       this.scene.fog = new THREE.Fog(0x0d0808, 10, 200);
 
-      // Lighting: SUPER SUBTLE red tint - masih keliatan jelas!
-      this.ambientLight.color.setHex(0x221a1a); // Very subtle red tint
-      this.ambientLight.intensity = 0.3; // Keep intensity same
+      this.ambientLight.color.setHex(0x221a1a);
+      this.ambientLight.intensity = 0.3;
 
-      this.sunLight.color.setHex(0x5a4a50); // Slight purple-red moonlight
-      this.sunLight.intensity = 0.5; // Keep intensity same
+      this.sunLight.color.setHex(0x5a4a50);
+      this.sunLight.intensity = 0.5;
 
-      this.fillLight.color.setHex(0x2a2428); // Very subtle red fill
-      this.fillLight.intensity = 0.2; // Keep intensity same
+      this.fillLight.color.setHex(0x2a2428);
+      this.fillLight.intensity = 0.2;
 
-      // Fireflies: red blood
       if (this.lightParticles) {
         this.lightParticles.setColor(0x421212);
       }
 
-      // Forest: DON'T change darkness - keep visible!
       this.darkenForestMaterials();
     } else {
       console.log("🌲 NORMAL MODE ACTIVATED");
 
-      // Background: normal black
       this.scene.background = new THREE.Color(this.config.background.color);
 
-      // Fog: normal dark blue
       this.scene.fog = new THREE.Fog(
         this.config.lighting.fog.color,
         this.config.lighting.fog.near,
         this.config.lighting.fog.far
       );
 
-      // Lighting: normal moonlight
       this.ambientLight.color.setHex(this.config.lighting.ambient.color);
       this.ambientLight.intensity = this.config.lighting.ambient.intensity;
 
@@ -412,12 +386,10 @@ export default class Scene2 extends BaseScene {
       this.fillLight.color.setHex(this.config.lighting.fill.color);
       this.fillLight.intensity = this.config.lighting.fill.intensity;
 
-      // Fireflies: normal white/yellow
       if (this.lightParticles) {
         this.lightParticles.setColor(0xffffb4);
       }
 
-      // Forest: same brightness
       this.darkenForestMaterials();
     }
 
@@ -428,13 +400,19 @@ export default class Scene2 extends BaseScene {
     this.onKeyPress = (e) => {
       const key = e.key;
 
-      // ✅ APOCALYPSE MODE TOGGLE
+      // ✅ SPACE for cinematic
+      if (key === " ") {
+        if (this.cinematic) {
+          this.cinematic.start();
+        }
+        return;
+      }
+
       if (key === "k" || key === "K") {
         this.toggleApocalypseMode();
         return;
       }
 
-      // ✅ GHOST CONTROLS
       if (key === "g" || key === "G") {
         if (this.ghostController) {
           this.ghostController.start();
@@ -503,10 +481,13 @@ export default class Scene2 extends BaseScene {
         this.toggleFreeMode();
       }
 
-      // ✅ GHOST STOP/RESET (lowercase to avoid conflict)
       if (key === "x") {
         if (this.ghostController) {
           this.ghostController.stop();
+        }
+        // ✅ Stop cinematic
+        if (this.cinematic) {
+          this.cinematic.stop();
         }
       }
       if (key === "c") {
@@ -554,7 +535,6 @@ export default class Scene2 extends BaseScene {
   updateInfo() {
     if (!this.infoElement) return;
 
-    // ✅ Update border color based on mode
     if (this.isApocalypseMode) {
       this.infoElement.style.borderColor = "#ff0000";
       this.infoElement.style.color = "#ff4444";
@@ -589,7 +569,12 @@ export default class Scene2 extends BaseScene {
           : "Idle"
       }<br>
       <br>
-      <strong>[K] Apocalypse | [G] Ghost Start | [x] Stop | [c] Reset</strong>
+      <strong>🎬 CINEMATIC</strong><br>
+      Status: ${
+        this.cinematic && this.cinematic.isPlaying ? "Playing" : "Idle"
+      }<br>
+      <br>
+      <strong>[SPACE] Cinematic | [K] Apocalypse | [G] Ghost | [x] Stop</strong>
     `;
   }
 
@@ -620,7 +605,6 @@ export default class Scene2 extends BaseScene {
     this.sunLight.intensity = this.config.lighting.sun.intensity;
     this.fillLight.intensity = this.config.lighting.fill.intensity;
 
-    // Reset to normal mode
     if (this.isApocalypseMode) {
       this.toggleApocalypseMode();
     }
@@ -639,12 +623,14 @@ export default class Scene2 extends BaseScene {
   enter() {
     super.enter();
 
+    // ✅ Add keyboard event listener when entering scene
+    document.addEventListener("keypress", this.onKeyPress);
+
     const app = window.app;
     if (app && app.cameraController) {
       app.cameraController.freeControls.enabled = false;
     }
 
-    // ✅ Set camera to ABSOLUTE position from config (not calculated)
     if (this.cameraMode) {
       const startPos = new THREE.Vector3(
         this.config.camera.initial.x,
@@ -654,12 +640,10 @@ export default class Scene2 extends BaseScene {
 
       this.cameraMode.playerPosition.copy(startPos);
 
-      // Set target sphere for third person (if user switches to it)
       if (this.cameraMode.targetSphere) {
         this.cameraMode.targetSphere.position.copy(startPos);
       }
 
-      // ✅ Set initial rotation from config (for FPS mode)
       if (this.config.camera.rotation && this.cameraMode.mode === "fps") {
         this.cameraMode.fps.yaw = this.config.camera.rotation.yaw;
         this.cameraMode.fps.pitch = this.config.camera.rotation.pitch;
@@ -677,7 +661,6 @@ export default class Scene2 extends BaseScene {
       );
     }
 
-    // ✅ Spawn ghost at ABSOLUTE position from config
     if (this.ghostModel && this.ghostController) {
       const ghostPos = new THREE.Vector3(
         this.config.ghost.position.x,
@@ -687,7 +670,6 @@ export default class Scene2 extends BaseScene {
 
       this.ghostController.setSpawnPosition(ghostPos);
 
-      // Set rotation
       this.ghostModel.rotation.set(
         this.config.ghost.rotation.x,
         this.config.ghost.rotation.y,
@@ -703,6 +685,7 @@ export default class Scene2 extends BaseScene {
 
     this.updateInfo();
     console.log("🌲 Scene 2 entered!");
+    console.log("💡 Press [SPACE] to start CINEMATIC");
     console.log("💡 Press [K] to toggle APOCALYPSE MODE");
     console.log("💡 Press [G] to start ghost animation");
   }
@@ -716,48 +699,54 @@ export default class Scene2 extends BaseScene {
       this.lightParticles.update(deltaTime);
     }
 
-    if (this.cameraMode) {
+    // ✅ Update cinematic first (takes priority over manual camera)
+    if (this.cinematic) {
+      this.cinematic.update(deltaTime);
+    }
+
+    // Only update manual camera if cinematic not playing
+    if (this.cameraMode && (!this.cinematic || !this.cinematic.isPlaying)) {
       this.cameraMode.update(deltaTime / 1000);
     }
 
-    // ✅ Update ghost built-in animation
     if (this.ghostMixer) {
       this.ghostMixer.update(deltaTime / 1000);
     }
 
-    // ✅ Update ghost movement animation
     if (this.ghostController) {
       this.ghostController.update(deltaTime);
     }
 
-    // ✅ Update ghost lighting to follow ghost position
     if (this.ghostModel && this.ghostSpotlight && this.ghostPointLight) {
       const ghostPos = this.ghostModel.position;
 
-      // Spotlight follows from above
       this.ghostSpotlight.position.set(ghostPos.x, ghostPos.y + 15, ghostPos.z);
 
-      // Point light follows ghost exactly
       this.ghostPointLight.position.copy(ghostPos);
     }
 
-    // ✅ Update ghost aura effects (rings only)
     if (this.ghostModel) {
       const ghostPos = this.ghostModel.position;
 
-      // Update rings position and rotation (Saturn effect)
       this.ghostRings.forEach((ring) => {
         ring.position.copy(ghostPos);
 
-        // Rotate around Y axis (spinning)
         ring.rotation.y +=
           ring.userData.rotationSpeed * 0.01 * (deltaTime / 16);
       });
+    }
+
+    // ✅ Update info to show cinematic status
+    if (this.cinematic) {
+      this.updateInfo();
     }
   }
 
   exit() {
     super.exit();
+
+    // ✅ Remove keyboard event listener when exiting scene
+    document.removeEventListener("keypress", this.onKeyPress);
 
     const app = window.app;
     if (app && app.cameraController) {
@@ -770,6 +759,7 @@ export default class Scene2 extends BaseScene {
   }
 
   dispose() {
+    // ✅ Remove event listener (backup, should already be removed in exit)
     document.removeEventListener("keypress", this.onKeyPress);
 
     if (this.infoElement) {
@@ -782,13 +772,11 @@ export default class Scene2 extends BaseScene {
       this.lightParticles = null;
     }
 
-    // ✅ Stop ghost animation mixer
     if (this.ghostMixer) {
       this.ghostMixer.stopAllAction();
       this.ghostMixer = null;
     }
 
-    // ✅ Remove ghost lights
     if (this.ghostSpotlight) {
       this.scene.remove(this.ghostSpotlight);
       this.scene.remove(this.ghostSpotlight.target);
@@ -800,7 +788,6 @@ export default class Scene2 extends BaseScene {
       this.ghostPointLight = null;
     }
 
-    // ✅ Remove ghost aura effects (rings only)
     this.ghostRings.forEach((ring) => {
       this.scene.remove(ring);
       ring.geometry.dispose();

@@ -588,12 +588,45 @@ export default class OpeningScene extends BaseScene {
 
     // ✅ Set camera position
     const app = window.app;
-    if (app && app.cameraController) {
+    if (app && app.cameraController && app.cameraController.freeControls) {
+      const ctrl = app.cameraController.freeControls;
+
+      console.log("📹 BEFORE reset:");
+      console.log(
+        "  Camera:",
+        this.camera.position.x.toFixed(2),
+        this.camera.position.y.toFixed(2),
+        this.camera.position.z.toFixed(2)
+      );
+      console.log(
+        "  Target:",
+        ctrl.target.x.toFixed(2),
+        ctrl.target.y.toFixed(2),
+        ctrl.target.z.toFixed(2)
+      );
+      console.log("  Enabled:", ctrl.enabled);
+
+      ctrl.enabled = true;
+      ctrl.reset();
+
       app.cameraController.setExactPosition(
         this.config.camera.initial,
         this.config.camera.lookAt
       );
-      console.log("📹 Opening scene camera set!");
+
+      console.log("📹 AFTER setExactPosition:");
+      console.log(
+        "  Camera:",
+        this.camera.position.x.toFixed(2),
+        this.camera.position.y.toFixed(2),
+        this.camera.position.z.toFixed(2)
+      );
+      console.log(
+        "  Target:",
+        ctrl.target.x.toFixed(2),
+        ctrl.target.y.toFixed(2),
+        ctrl.target.z.toFixed(2)
+      );
     } else {
       this.camera.position.set(
         this.config.camera.initial.x,

@@ -280,7 +280,10 @@ class App {
     const clampedDelta = Math.min(deltaTime, 100); // Max 100ms per frame
 
     // Update camera controller
-    this.cameraController.update(clampedDelta);
+    const currentScene = this.sceneManager.getCurrentScene();
+    if (currentScene && currentScene.name === "scene2") {
+      this.cameraController.update(clampedDelta);
+    }
 
     // Update scene manager
     this.sceneManager.update(clampedDelta);

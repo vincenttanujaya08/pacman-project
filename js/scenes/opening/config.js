@@ -56,7 +56,6 @@ export default {
   // Camera
   camera: {
     initial: { x: 60.19, y: 3.79, z: -82.04 },
-    rotation: { yaw: 0.136, pitch: 0.058 },
     lookAt: { x: 60, y: 0, z: 0 },
   },
 
