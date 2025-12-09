@@ -1,6 +1,6 @@
 // js/scenes/scene2/Scene2.js
 // Scene 2 - Using particles config from config.js
-// ✅ WITH APOCALYPSE MODE (Toggle with K key)
+// ✅ WITH APOCALYPSE MODE (Toggle with K key) + SMOOTH TRANSITION
 // ✅ WITH CINEMATIC SEQUENCE (Trigger with SPACE key)
 
 import BaseScene from "../BaseScene.js";
@@ -32,9 +32,35 @@ export default class Scene2 extends BaseScene {
       forest: config.scale.forest.x,
     };
     this.infoElement = null;
-    this.materialDarkness = 0.15;
+    this.materialDarkness = 0.6; // ✅ BRIGHTER (was 0.15)
 
     this.isApocalypseMode = false;
+
+    // ✅ SMOOTH TRANSITION STATE
+    this.isTransitioning = false;
+    this.transitionDuration = 1500; // 1.5 seconds
+    this.transitionElapsed = 0;
+
+    // Store original colors for smooth lerp
+    this.normalColors = {
+      background: null,
+      fog: null,
+      ambient: { color: null, intensity: null },
+      sun: { color: null, intensity: null },
+      fill: { color: null, intensity: null },
+      fireflies: null,
+      materialDarkness: 0.6,
+    };
+
+    this.apocalypseColors = {
+      background: null,
+      fog: null,
+      ambient: { color: null, intensity: null },
+      sun: { color: null, intensity: null },
+      fill: { color: null, intensity: null },
+      fireflies: null,
+      materialDarkness: 0.45,
+    };
 
     // ✅ Cinematic controller
     this.cinematic = null;
@@ -62,6 +88,12 @@ export default class Scene2 extends BaseScene {
     }
 
     this.setupLighting();
+
+    // ✅ Store normal mode colors
+    this.storeNormalColors();
+
+    // ✅ Store apocalypse mode colors from config
+    this.storeApocalypseColors();
 
     if (this.config.lightParticles && this.config.lightParticles.enabled) {
       this.lightParticles = new LightParticles(
@@ -110,13 +142,13 @@ export default class Scene2 extends BaseScene {
         }
       });
 
-      console.log("Darkening materials...");
-      this.darkenForestMaterials();
+      console.log("Setting up forest materials...");
+      this.setupForestMaterials(); // ✅ Store originals
 
       this.forestModel.visible = true;
 
       this.addObject(this.forestModel, "forest");
-      console.log("✅ Forest loaded");
+      console.log("✅ Forest loaded (BRIGHTER!)");
     } catch (error) {
       console.error("❌ Error loading forest:", error);
     }
@@ -170,7 +202,8 @@ export default class Scene2 extends BaseScene {
         this.ghostController,
         this.ghostSpotlight,
         this.ghostPointLight,
-        this.ghostRings
+        this.ghostRings,
+        this // ✅ Pass scene2 instance for apocalypse trigger
       );
       console.log("✅ Cinematic controller ready");
       console.log("💡 Press [SPACE] to start cinematic sequence");
@@ -180,7 +213,7 @@ export default class Scene2 extends BaseScene {
 
     this.createInfoDisplay();
     console.log("✅ Scene 2 ready!");
-    console.log("💡 Press [K] to toggle APOCALYPSE MODE");
+    console.log("💡 Press [K] to toggle APOCALYPSE MODE (smooth transition)");
     console.log("💡 Press [SPACE] to start CINEMATIC");
   }
 
@@ -306,21 +339,35 @@ export default class Scene2 extends BaseScene {
     console.log(`   - 2 atom-style crossing rings (diagonal orbits)`);
   }
 
-  darkenForestMaterials() {
+  // ✅ Store original colors for materials (no darkening by default)
+  setupForestMaterials() {
     if (!this.forestModel) return;
-
-    const brightness = this.materialDarkness;
 
     this.forestModel.traverse((child) => {
       if (!child.isMesh || !child.material) return;
 
+      // Clone and store original color
       if (!child.material.userData.originalColor) {
         child.material = child.material.clone();
         child.material.userData.originalColor = child.material.color.clone();
       }
+    });
+
+    // Apply current brightness
+    this.applyForestBrightness(this.materialDarkness);
+  }
+
+  // ✅ Apply brightness to forest materials
+  applyForestBrightness(brightness) {
+    if (!this.forestModel) return;
+
+    this.forestModel.traverse((child) => {
+      if (!child.isMesh || !child.material) return;
 
       const mat = child.material;
       const originalColor = mat.userData.originalColor;
+
+      if (!originalColor) return;
 
       mat.color.copy(originalColor).multiplyScalar(brightness);
 
@@ -334,66 +381,180 @@ export default class Scene2 extends BaseScene {
       mat.transparent = false;
       mat.opacity = 1.0;
     });
+  }
+
+  // ✅ Store normal mode colors
+  storeNormalColors() {
+    this.normalColors.background = new THREE.Color(
+      this.config.background.color
+    );
+    this.normalColors.fog = new THREE.Color(this.config.lighting.fog.color);
+    this.normalColors.ambient.color = new THREE.Color(
+      this.config.lighting.ambient.color
+    );
+    this.normalColors.ambient.intensity =
+      this.config.lighting.ambient.intensity;
+    this.normalColors.sun.color = new THREE.Color(
+      this.config.lighting.sun.color
+    );
+    this.normalColors.sun.intensity = this.config.lighting.sun.intensity;
+    this.normalColors.fill.color = new THREE.Color(
+      this.config.lighting.fill.color
+    );
+    this.normalColors.fill.intensity = this.config.lighting.fill.intensity;
+    this.normalColors.fireflies = 0xffffb4; // Warm yellow
+    this.normalColors.materialDarkness = 0.6;
+  }
+
+  // ✅ Store apocalypse mode colors from config
+  storeApocalypseColors() {
+    const apoc = this.config.apocalypse;
+
+    this.apocalypseColors.background = new THREE.Color(apoc.background.color);
+    this.apocalypseColors.fog = new THREE.Color(apoc.fog.color);
+    this.apocalypseColors.ambient.color = new THREE.Color(
+      apoc.lighting.ambient.color
+    );
+    this.apocalypseColors.ambient.intensity = apoc.lighting.ambient.intensity;
+    this.apocalypseColors.sun.color = new THREE.Color(apoc.lighting.sun.color);
+    this.apocalypseColors.sun.intensity = apoc.lighting.sun.intensity;
+    this.apocalypseColors.fill.color = new THREE.Color(
+      apoc.lighting.fill.color
+    );
+    this.apocalypseColors.fill.intensity = apoc.lighting.fill.intensity;
+    this.apocalypseColors.fireflies = apoc.fireflies.color;
+    this.apocalypseColors.materialDarkness = apoc.materialDarkness;
+  }
+
+  // ✅ START SMOOTH TRANSITION
+  toggleApocalypseMode() {
+    // Prevent spam during transition
+    if (this.isTransitioning) {
+      console.log("⚠️ Transition already in progress...");
+      return;
+    }
+
+    this.isApocalypseMode = !this.isApocalypseMode;
+    this.isTransitioning = true;
+    this.transitionElapsed = 0;
 
     console.log(
-      `🌙 Forest brightness: ${(brightness * 100).toFixed(
-        0
-      )}% (same for both modes)`
+      `🎬 Starting smooth transition to ${
+        this.isApocalypseMode ? "APOCALYPSE" : "NORMAL"
+      } mode...`
     );
   }
 
-  toggleApocalypseMode() {
-    this.isApocalypseMode = !this.isApocalypseMode;
+  // ✅ UPDATE SMOOTH TRANSITION
+  updateModeTransition(deltaTime) {
+    if (!this.isTransitioning) return;
 
-    if (this.isApocalypseMode) {
-      console.log("🔥 APOCALYPSE MODE ACTIVATED");
+    this.transitionElapsed += deltaTime;
+    const progress = Math.min(
+      this.transitionElapsed / this.transitionDuration,
+      1
+    );
 
-      this.scene.background = new THREE.Color(0x000000);
+    // Ease in-out for smooth feel
+    const easedProgress = this.easeInOutCubic(progress);
 
-      this.scene.fog = new THREE.Fog(0x0d0808, 10, 200);
+    // Determine source and target colors
+    const from = this.isApocalypseMode
+      ? this.normalColors
+      : this.apocalypseColors;
+    const to = this.isApocalypseMode
+      ? this.apocalypseColors
+      : this.normalColors;
 
-      this.ambientLight.color.setHex(0x221a1a);
-      this.ambientLight.intensity = 0.3;
+    // Lerp background color
+    this.scene.background.lerpColors(
+      from.background,
+      to.background,
+      easedProgress
+    );
 
-      this.sunLight.color.setHex(0x5a4a50);
-      this.sunLight.intensity = 0.5;
-
-      this.fillLight.color.setHex(0x2a2428);
-      this.fillLight.intensity = 0.2;
-
-      if (this.lightParticles) {
-        this.lightParticles.setColor(0x421212);
-      }
-
-      this.darkenForestMaterials();
-    } else {
-      console.log("🌲 NORMAL MODE ACTIVATED");
-
-      this.scene.background = new THREE.Color(this.config.background.color);
-
-      this.scene.fog = new THREE.Fog(
-        this.config.lighting.fog.color,
-        this.config.lighting.fog.near,
-        this.config.lighting.fog.far
-      );
-
-      this.ambientLight.color.setHex(this.config.lighting.ambient.color);
-      this.ambientLight.intensity = this.config.lighting.ambient.intensity;
-
-      this.sunLight.color.setHex(this.config.lighting.sun.color);
-      this.sunLight.intensity = this.config.lighting.sun.intensity;
-
-      this.fillLight.color.setHex(this.config.lighting.fill.color);
-      this.fillLight.intensity = this.config.lighting.fill.intensity;
-
-      if (this.lightParticles) {
-        this.lightParticles.setColor(0xffffb4);
-      }
-
-      this.darkenForestMaterials();
+    // Lerp fog color
+    if (this.scene.fog) {
+      this.scene.fog.color.lerpColors(from.fog, to.fog, easedProgress);
     }
 
-    this.updateInfo();
+    // Lerp ambient light
+    this.ambientLight.color.lerpColors(
+      from.ambient.color,
+      to.ambient.color,
+      easedProgress
+    );
+    this.ambientLight.intensity = this.lerp(
+      from.ambient.intensity,
+      to.ambient.intensity,
+      easedProgress
+    );
+
+    // Lerp sun light
+    this.sunLight.color.lerpColors(from.sun.color, to.sun.color, easedProgress);
+    this.sunLight.intensity = this.lerp(
+      from.sun.intensity,
+      to.sun.intensity,
+      easedProgress
+    );
+
+    // Lerp fill light
+    this.fillLight.color.lerpColors(
+      from.fill.color,
+      to.fill.color,
+      easedProgress
+    );
+    this.fillLight.intensity = this.lerp(
+      from.fill.intensity,
+      to.fill.intensity,
+      easedProgress
+    );
+
+    // Lerp fireflies color
+    if (this.lightParticles) {
+      const fromFirefly = new THREE.Color(from.fireflies);
+      const toFirefly = new THREE.Color(to.fireflies);
+      const currentFirefly = new THREE.Color().lerpColors(
+        fromFirefly,
+        toFirefly,
+        easedProgress
+      );
+
+      // Apply to each firefly
+      for (const f of this.lightParticles.fireflies) {
+        f.material.color.copy(currentFirefly);
+      }
+    }
+
+    // Lerp forest brightness
+    const currentDarkness = this.lerp(
+      from.materialDarkness,
+      to.materialDarkness,
+      easedProgress
+    );
+    this.materialDarkness = currentDarkness;
+    this.applyForestBrightness(currentDarkness);
+
+    // Transition complete
+    if (progress >= 1) {
+      this.isTransitioning = false;
+      console.log(
+        `✅ Transition complete! ${
+          this.isApocalypseMode ? "🔥 APOCALYPSE" : "🌲 NORMAL"
+        } MODE`
+      );
+      this.updateInfo();
+    }
+  }
+
+  // ✅ Linear interpolation helper
+  lerp(a, b, t) {
+    return a + (b - a) * t;
+  }
+
+  // ✅ Easing function
+  easeInOutCubic(t) {
+    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
   }
 
   setupKeyboardControls() {
@@ -409,7 +570,7 @@ export default class Scene2 extends BaseScene {
       }
 
       if (key === "k" || key === "K") {
-        this.toggleApocalypseMode();
+        this.toggleApocalypseMode(); // ✅ Now with smooth transition
         return;
       }
 
@@ -431,12 +592,12 @@ export default class Scene2 extends BaseScene {
 
       if (key === "3") {
         this.materialDarkness = Math.max(0, this.materialDarkness - 0.05);
-        this.darkenForestMaterials();
+        this.applyForestBrightness(this.materialDarkness);
         this.updateInfo();
       }
       if (key === "4") {
         this.materialDarkness = Math.min(1, this.materialDarkness + 0.05);
-        this.darkenForestMaterials();
+        this.applyForestBrightness(this.materialDarkness);
         this.updateInfo();
       }
 
@@ -535,6 +696,7 @@ export default class Scene2 extends BaseScene {
   updateInfo() {
     if (!this.infoElement) return;
 
+    // Change color based on mode
     if (this.isApocalypseMode) {
       this.infoElement.style.borderColor = "#ff0000";
       this.infoElement.style.color = "#ff4444";
@@ -543,16 +705,20 @@ export default class Scene2 extends BaseScene {
       this.infoElement.style.color = "#00ff00";
     }
 
+    const transitionStatus = this.isTransitioning
+      ? `<span style="color: #ffaa00;">⚡ TRANSITIONING...</span>`
+      : this.isApocalypseMode
+      ? "🔥 APOCALYPSE MODE"
+      : "🌲 NORMAL MODE";
+
     this.infoElement.innerHTML = `
-      <strong>🌲 SCENE 2 - ${
-        this.isApocalypseMode ? "🔥 APOCALYPSE MODE" : "MAGICAL FOREST"
-      }</strong><br>
+      <strong>🌲 SCENE 2 - ${transitionStatus}</strong><br>
       <br>
       <strong>📦 MODEL</strong><br>
       Forest Scale: ${this.currentScale.forest.toFixed(2)}<br>
       <br>
       <strong>🎨 MATERIAL</strong><br>
-      Darkness: ${(this.materialDarkness * 100).toFixed(0)}%<br>
+      Brightness: ${(this.materialDarkness * 100).toFixed(0)}%<br>
       <br>
       <strong>💡 LIGHTING</strong><br>
       Ambient: ${this.ambientLight.intensity.toFixed(2)}<br>
@@ -584,7 +750,8 @@ export default class Scene2 extends BaseScene {
     console.log("📋 CURRENT CONFIG");
     console.log("========================================");
     console.log("Mode:", this.isApocalypseMode ? "APOCALYPSE" : "NORMAL");
-    console.log("Material darkness:", this.materialDarkness.toFixed(2));
+    console.log("Transitioning:", this.isTransitioning);
+    console.log("Material brightness:", this.materialDarkness.toFixed(2));
     console.log("Ambient:", this.ambientLight.intensity.toFixed(2));
     console.log("Moonlight:", this.sunLight.intensity.toFixed(2));
     console.log("Fill:", this.fillLight.intensity.toFixed(2));
@@ -598,16 +765,18 @@ export default class Scene2 extends BaseScene {
     this.currentScale.forest = this.config.scale.forest.x;
     this.updateForestScale();
 
-    this.materialDarkness = 0.15;
-    this.darkenForestMaterials();
+    // Reset to normal mode if in apocalypse
+    if (this.isApocalypseMode) {
+      this.toggleApocalypseMode();
+    }
+
+    // Reset brightness
+    this.materialDarkness = 0.6;
+    this.applyForestBrightness(this.materialDarkness);
 
     this.ambientLight.intensity = this.config.lighting.ambient.intensity;
     this.sunLight.intensity = this.config.lighting.sun.intensity;
     this.fillLight.intensity = this.config.lighting.fill.intensity;
-
-    if (this.isApocalypseMode) {
-      this.toggleApocalypseMode();
-    }
 
     this.updateInfo();
     console.log("✅ Reset to defaults");
@@ -661,14 +830,17 @@ export default class Scene2 extends BaseScene {
       );
     }
 
-    if (this.ghostModel && this.ghostController) {
+    // ✅ ENSURE GHOST IS FULLY VISIBLE when entering scene normally
+    if (this.ghostModel) {
       const ghostPos = new THREE.Vector3(
         this.config.ghost.position.x,
         this.config.ghost.position.y,
         this.config.ghost.position.z
       );
 
-      this.ghostController.setSpawnPosition(ghostPos);
+      if (this.ghostController) {
+        this.ghostController.setSpawnPosition(ghostPos);
+      }
 
       this.ghostModel.rotation.set(
         this.config.ghost.rotation.x,
@@ -676,7 +848,32 @@ export default class Scene2 extends BaseScene {
         this.config.ghost.rotation.z
       );
 
-      console.log("👻 Ghost spawned at absolute position");
+      // Make ghost fully visible
+      this.ghostModel.visible = true;
+      this.ghostModel.traverse((child) => {
+        if (child.isMesh && child.material) {
+          child.material.transparent = true;
+          child.material.opacity = 1.0; // Fully visible
+        }
+      });
+
+      // Make lights fully visible
+      if (this.ghostSpotlight) {
+        this.ghostSpotlight.visible = true;
+        this.ghostSpotlight.intensity = 3.0;
+      }
+      if (this.ghostPointLight) {
+        this.ghostPointLight.visible = true;
+        this.ghostPointLight.intensity = 2.0;
+      }
+
+      // Make rings fully visible
+      this.ghostRings.forEach((ring) => {
+        ring.visible = true;
+        ring.material.opacity = 0.45;
+      });
+
+      console.log("👻 Ghost spawned and fully visible!");
     }
 
     if (this.infoElement) {
@@ -684,9 +881,14 @@ export default class Scene2 extends BaseScene {
     }
 
     this.updateInfo();
-    console.log("🌲 Scene 2 entered!");
-    console.log("💡 Press [SPACE] to start CINEMATIC");
-    console.log("💡 Press [K] to toggle APOCALYPSE MODE");
+    console.log("🌲 Scene 2 entered! (BRIGHTER MODE)");
+    console.log("💡 Ghost is visible - press [SPACE] to start CINEMATIC");
+    console.log(
+      "   ⚡ Cinematic will auto-trigger APOCALYPSE mode during run!"
+    );
+    console.log(
+      "💡 Press [K] to manually toggle APOCALYPSE MODE (smooth transition)"
+    );
     console.log("💡 Press [G] to start ghost animation");
   }
 
@@ -694,6 +896,9 @@ export default class Scene2 extends BaseScene {
     super.update(deltaTime);
 
     if (!this.isActive) return;
+
+    // ✅ Update smooth mode transition
+    this.updateModeTransition(deltaTime);
 
     if (this.lightParticles) {
       this.lightParticles.update(deltaTime);
@@ -734,11 +939,6 @@ export default class Scene2 extends BaseScene {
         ring.rotation.y +=
           ring.userData.rotationSpeed * 0.01 * (deltaTime / 16);
       });
-    }
-
-    // ✅ Update info to show cinematic status
-    if (this.cinematic) {
-      this.updateInfo();
     }
   }
 

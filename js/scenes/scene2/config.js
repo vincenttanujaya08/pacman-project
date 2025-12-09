@@ -24,25 +24,25 @@ export default {
     forest: { x: 0, y: 0, z: 0 },
   },
 
-  // Lighting
+  // Lighting - ✅ MUCH BRIGHTER FOR NORMAL MODE
   lighting: {
     ambient: {
-      color: 0x1a1a2e,
-      intensity: 0.3,
+      color: 0x445566, // ✅ Lighter blue-grey (was 0x1a1a2e)
+      intensity: 0.6, // ✅ 2x brighter (was 0.3)
     },
     sun: {
-      color: 0x6699ff,
-      intensity: 0.5,
+      color: 0xfff4e6, // ✅ Warm sunlight (was 0x6699ff)
+      intensity: 1.2, // ✅ 2.4x brighter (was 0.5)
       position: { x: 10, y: 20, z: 10 },
     },
     fill: {
-      color: 0x334477,
-      intensity: 0.2,
+      color: 0x88aacc, // ✅ Brighter cool blue (was 0x334477)
+      intensity: 0.5, // ✅ 2.5x brighter (was 0.2)
       position: { x: -5, y: 10, z: -5 },
     },
     fog: {
       enabled: true,
-      color: 0x0a0a1e,
+      color: 0x2a3a4e, // ✅ Much lighter fog (was 0x0a0a1e)
       near: 10,
       far: 200,
     },
@@ -50,14 +50,14 @@ export default {
 
   // Camera
   camera: {
-    initial: { x: -8.84, y: 7542.8, z: 97.28 }, // ✅ Absolute start position
+    initial: { x: -7.29, y: 7542.8, z: 108.65 }, // ✅ Absolute start position
     rotation: { yaw: 0.136, pitch: 0.058 },
     lookAt: { x: -8.84, y: 7542.8, z: 100 }, // Look forward
   },
 
-  // Background
+  // Background - ✅ BRIGHTER (was 0x000011 - almost black)
   background: {
-    color: 0x000011,
+    color: 0x1a2838, // ✅ Dark blue (mystical but visible)
   },
 
   // ✅ Light Particles
@@ -73,5 +73,33 @@ export default {
   ghost: {
     position: { x: 39.16, y: 7538.8, z: 109.97 }, // Absolute spawn position
     rotation: { x: 0, y: -Math.PI / 2, z: 0 }, // Initial rotation
+  },
+
+  // ✅ APOCALYPSE MODE SETTINGS (for smooth transition)
+  apocalypse: {
+    background: {
+      color: 0x000000, // ✅ Pure black sky
+    },
+    fog: {
+      color: 0x1a0808, // ✅ Dark red mist
+    },
+    lighting: {
+      ambient: {
+        color: 0x3a2a2a, // ✅ Slight red tint
+        intensity: 0.4, // ✅ Slightly dimmer
+      },
+      sun: {
+        color: 0x8a6a70, // ✅ Reddish dim light
+        intensity: 0.8,
+      },
+      fill: {
+        color: 0x3a2a30,
+        intensity: 0.3,
+      },
+    },
+    fireflies: {
+      color: 0xff2020, // ✅ Red fireflies
+    },
+    materialDarkness: 0.45, // ✅ Slightly darker forest (was 0.6, now 0.45)
   },
 };
