@@ -1,5 +1,5 @@
-// js/scenes/scene2/Scene2Cinematic.js
-// Cinematic camera sequence for Scene2
+// Scene2Cinematic Patched Version
+// Dengan LookBack Fix + Hold + Camera Effects (shake, breathing, zoom, noise)
 
 export default class Scene2Cinematic {
   constructor(
@@ -22,6 +22,17 @@ export default class Scene2Cinematic {
     this.isPlaying = false;
     this.currentStep = 0;
     this.stepElapsed = 0;
+
+    // LookBack fix
+    this.hasLookedBack = false;
+    this.lookBackHold = 0.25; // tahan 25% durasi
+
+    // Camera Effects State
+    this.shakeIntensity = 0;
+    this.noiseIntensity = 0.002;
+    this.breathAmp = 0.02;
+    this.zoomAmount = 1;
+    this.zoomTarget = 1;
 
     // Keyframes
     this.sequence = [
@@ -75,11 +86,14 @@ export default class Scene2Cinematic {
         toYaw: 0.104,
         fromPitch: 0.058,
         toPitch: 0.276,
+
+        // look back once
         lookBackAt: 4000,
-        lookBackDuration: 800,
+        lookBackDuration: 1200,
       },
     ];
 
+    // Ghost fade settings
     this.ghostFadeOpacity = 0;
     this.ghostFading = false;
     this.ghostFadeElapsed = 0;
@@ -101,12 +115,14 @@ export default class Scene2Cinematic {
     this.ghostFadeOpacity = 0;
     this.ghostFading = false;
     this.isLookingBack = false;
+    this.hasLookedBack = false;
 
-    // Hide ghost completely initially
+    // Hide ghost initially
     if (this.ghostModel) {
       this.ghostModel.visible = false;
       this.ghostModel.traverse((child) => {
         if (child.isMesh && child.material) {
+          child.material.visible = true;
           child.material.transparent = true;
           child.material.opacity = 0;
         }
@@ -125,38 +141,32 @@ export default class Scene2Cinematic {
       ring.material.opacity = 0;
     });
 
-    // Disable camera mode input
+    // Disable camera input
     if (this.cameraMode) {
-      for (const key in this.cameraMode.keys) {
-        this.cameraMode.keys[key] = false;
-      }
+      for (const key in this.cameraMode.keys) this.cameraMode.keys[key] = false;
     }
 
-    // Set initial position
-    const firstStep = this.sequence[0];
-    this.camera.position.set(
-      firstStep.fromPos.x,
-      firstStep.fromPos.y,
-      firstStep.fromPos.z
-    );
+    // Init camera pos
+    const first = this.sequence[0];
+    this.camera.position.set(first.fromPos.x, first.fromPos.y, first.fromPos.z);
+
     if (this.cameraMode && this.cameraMode.mode === "fps") {
-      this.cameraMode.fps.yaw = firstStep.fromYaw;
-      this.cameraMode.fps.pitch = firstStep.fromPitch;
+      this.cameraMode.fps.yaw = first.fromYaw;
+      this.cameraMode.fps.pitch = first.fromPitch;
       this.cameraMode.playerPosition.copy(this.camera.position);
     }
   }
 
   stop() {
     this.isPlaying = false;
-    console.log("🎬 Cinematic Stopped");
   }
 
   update(deltaTime) {
     if (!this.isPlaying) return;
 
     if (this.currentStep >= this.sequence.length) {
+      console.log("🎬 Cinematic Complete!");
       this.isPlaying = false;
-      console.log("✅ Cinematic Complete!");
       return;
     }
 
@@ -173,7 +183,10 @@ export default class Scene2Cinematic {
       z: this.lerp(step.fromPos.z, step.toPos.z, easedT),
     };
 
-    // Add Y variation for natural ground movement
+    // Breathing sway (halus)
+    pos.y += Math.sin(performance.now() * 0.002) * this.breathAmp;
+
+    // Running step bounce
     if (step.type === "run_forward") {
       const variation = Math.sin(easedT * Math.PI * 4) * 0.3;
       pos.y += variation;
@@ -181,165 +194,172 @@ export default class Scene2Cinematic {
 
     this.camera.position.set(pos.x, pos.y, pos.z);
 
-    // Handle look back during run
+    // LOOK BACK FIX — Only once
     if (
       step.type === "run_forward" &&
-      step.lookBackAt &&
+      !this.hasLookedBack &&
       this.stepElapsed >= step.lookBackAt &&
       !this.isLookingBack
     ) {
       this.isLookingBack = true;
+      this.hasLookedBack = true;
+
       this.lookBackElapsed = 0;
       this.lookBackStartYaw = this.lerp(step.fromYaw, step.toYaw, easedT);
       this.lookBackStartPitch = this.lerp(step.fromPitch, step.toPitch, easedT);
+
+      // Zoom in saat lihat hantu
+      this.zoomTarget = 0.85;
+
       console.log("👀 Looking back at ghost!");
     }
 
-    // Interpolate rotation
+    // ROTATION
     let yaw, pitch;
 
     if (this.isLookingBack && step.type === "run_forward") {
       this.lookBackElapsed += deltaTime;
-      const lookBackT = Math.min(
-        this.lookBackElapsed / step.lookBackDuration,
-        1
-      );
+      const lbT = Math.min(this.lookBackElapsed / step.lookBackDuration, 1);
 
-      if (lookBackT < 0.5) {
-        // Turn back (first half)
-        const turnT = lookBackT * 2;
+      const half = 0.5;
+      const hold = this.lookBackHold;
+
+      if (lbT < half) {
+        // rotate 180°
+        const k = this.easeInOutCubic(lbT / half);
         yaw = this.lerp(
           this.lookBackStartYaw,
           this.lookBackStartYaw + Math.PI,
-          this.easeInOutCubic(turnT)
+          k
         );
-        pitch = this.lerp(
-          this.lookBackStartPitch,
-          0,
-          this.easeInOutCubic(turnT)
-        );
+        pitch = this.lerp(this.lookBackStartPitch, 0, k);
+      } else if (lbT < half + hold) {
+        // HOLD menghadap belakang
+        yaw = this.lookBackStartYaw + Math.PI;
+        pitch = 0;
       } else {
-        // Turn forward again (second half)
-        const turnT = (lookBackT - 0.5) * 2;
+        // kembali menghadap depan
+        const k = (lbT - (half + hold)) / (1 - (half + hold));
+        const e = this.easeInOutCubic(k);
+
         yaw = this.lerp(
           this.lookBackStartYaw + Math.PI,
           this.lookBackStartYaw,
-          this.easeInOutCubic(turnT)
+          e
         );
-        pitch = this.lerp(
-          0,
-          this.lookBackStartPitch,
-          this.easeInOutCubic(turnT)
-        );
+        pitch = this.lerp(0, this.lookBackStartPitch, e);
       }
 
-      if (lookBackT >= 1) {
+      if (lbT >= 1) {
         this.isLookingBack = false;
-        console.log("✅ Look back complete, continuing forward");
+        this.zoomTarget = 1; // zoom kembali normal
+        console.log("➡️ LookBack end");
       }
     } else {
       yaw = this.lerp(step.fromYaw, step.toYaw, easedT);
       pitch = this.lerp(step.fromPitch, step.toPitch, easedT);
     }
 
-    // Apply rotation to camera (FPS mode style)
+    // CAMERA EFFECTS — Shake + Noise + Zoom
+    this.applyCameraEffects(deltaTime, yaw, pitch);
+
+    // Ghost fade
+    if (step.ghostFadeIn && !this.ghostFading) {
+      this.ghostFading = true;
+      this.ghostFadeElapsed = 0;
+
+      if (this.ghostModel) this.ghostModel.visible = true;
+      if (this.ghostSpotlight) this.ghostSpotlight.visible = true;
+      if (this.ghostPointLight) this.ghostPointLight.visible = true;
+      this.ghostRings.forEach((r) => (r.visible = true));
+    }
+
+    if (this.ghostFading) {
+      this.updateGhostFade(deltaTime);
+    }
+
+    // NEXT step
+    if (t >= 1) {
+      this.currentStep++;
+      this.stepElapsed = 0;
+    }
+  }
+
+  applyCameraEffects(dt, yaw, pitch) {
+    // Smooth interpolation zoom
+    this.zoomAmount += (this.zoomTarget - this.zoomAmount) * 0.05;
+
+    // Camera noise jitter
+    const jitterYaw = (Math.random() - 0.5) * this.noiseIntensity;
+    const jitterPitch = (Math.random() - 0.5) * this.noiseIntensity;
+
+    // Shake (dipakai saat lookBack mulai)
+    const shake = this.isLookingBack ? 0.03 : 0.005;
+    const shakeYaw = (Math.random() - 0.5) * shake;
+    const shakePitch = (Math.random() - 0.5) * shake * 0.5;
+
+    const finalYaw = yaw + jitterYaw + shakeYaw;
+    const finalPitch = pitch + jitterPitch + shakePitch;
+
+    // apply to FPS camera
     if (this.cameraMode && this.cameraMode.mode === "fps") {
-      this.cameraMode.fps.yaw = yaw;
-      this.cameraMode.fps.pitch = pitch;
+      this.cameraMode.fps.yaw = finalYaw;
+      this.cameraMode.fps.pitch = finalPitch;
       this.cameraMode.playerPosition.copy(this.camera.position);
 
-      const lookX = Math.cos(pitch) * Math.sin(yaw);
-      const lookY = Math.sin(pitch);
-      const lookZ = Math.cos(pitch) * Math.cos(yaw);
+      // Create look vector
+      const zx = Math.cos(finalPitch) * Math.sin(finalYaw);
+      const zy = Math.sin(finalPitch);
+      const zz = Math.cos(finalPitch) * Math.cos(finalYaw);
 
       const lookAt = new THREE.Vector3(
-        this.camera.position.x + lookX,
-        this.camera.position.y + lookY,
-        this.camera.position.z + lookZ
+        this.camera.position.x + zx,
+        this.camera.position.y + zy,
+        this.camera.position.z + zz
       );
 
+      // apply zoom (FOV scale)
+      this.camera.fov = 75 * this.zoomAmount;
+      this.camera.updateProjectionMatrix();
+
+      // manual matrix like original
       const worldUp = new THREE.Vector3(0, 1, 0);
       const z = new THREE.Vector3()
         .subVectors(this.camera.position, lookAt)
         .normalize();
       const x = new THREE.Vector3().crossVectors(worldUp, z).normalize();
       const y = new THREE.Vector3().crossVectors(z, x).normalize();
-      const mat = new THREE.Matrix4();
-      mat.makeBasis(x, y, z);
+      const mat = new THREE.Matrix4().makeBasis(x, y, z);
+
       this.camera.quaternion.setFromRotationMatrix(mat);
-    }
-
-    // Ghost fade in
-    if (step.ghostFadeIn && !this.ghostFading) {
-      this.ghostFading = true;
-      this.ghostFadeElapsed = 0;
-      console.log("👻 Ghost fading in...");
-
-      if (this.ghostModel) {
-        this.ghostModel.visible = true;
-      }
-      if (this.ghostSpotlight) {
-        this.ghostSpotlight.visible = true;
-      }
-      if (this.ghostPointLight) {
-        this.ghostPointLight.visible = true;
-      }
-      this.ghostRings.forEach((ring) => {
-        ring.visible = true;
-      });
-    }
-
-    if (this.ghostFading) {
-      this.ghostFadeElapsed += deltaTime;
-      const fadeT = Math.min(this.ghostFadeElapsed / this.ghostFadeDuration, 1);
-      const easedFadeT = this.easeInOutCubic(fadeT);
-      this.ghostFadeOpacity = easedFadeT;
-
-      // Apply fade to ghost model materials
-      if (this.ghostModel) {
-        this.ghostModel.traverse((child) => {
-          if (child.isMesh && child.material) {
-            child.material.opacity = easedFadeT;
-          }
-        });
-      }
-
-      // Apply fade to ghost lights
-      if (this.ghostSpotlight) {
-        this.ghostSpotlight.intensity = 3.0 * easedFadeT;
-      }
-      if (this.ghostPointLight) {
-        this.ghostPointLight.intensity = 2.0 * easedFadeT;
-      }
-
-      // Apply fade to rings
-      this.ghostRings.forEach((ring) => {
-        ring.material.opacity = 0.45 * easedFadeT;
-      });
-
-      if (fadeT >= 1) {
-        this.ghostFading = false;
-        console.log("✅ Ghost fully visible!");
-      }
-    }
-
-    // Move to next step
-    if (t >= 1) {
-      this.currentStep++;
-      this.stepElapsed = 0;
-
-      if (this.currentStep < this.sequence.length) {
-        console.log(
-          `🎬 Step ${this.currentStep + 1}/${this.sequence.length}: ${
-            this.sequence[this.currentStep].type
-          }`
-        );
-      }
     }
   }
 
-  lerp(start, end, t) {
-    return start + (end - start) * t;
+  updateGhostFade(dt) {
+    this.ghostFadeElapsed += dt;
+
+    const fadeT = Math.min(this.ghostFadeElapsed / this.ghostFadeDuration, 1);
+    const e = this.easeInOutCubic(fadeT);
+
+    this.ghostFadeOpacity = e;
+
+    if (this.ghostModel) {
+      this.ghostModel.traverse((child) => {
+        if (child.isMesh && child.material) child.material.opacity = e;
+      });
+    }
+    if (this.ghostSpotlight) this.ghostSpotlight.intensity = 3.0 * e;
+    if (this.ghostPointLight) this.ghostPointLight.intensity = 2.0 * e;
+
+    this.ghostRings.forEach((r) => (r.material.opacity = 0.45 * e));
+
+    if (fadeT >= 1) {
+      this.ghostFading = false;
+    }
+  }
+
+  lerp(a, b, t) {
+    return a + (b - a) * t;
   }
 
   easeInOutCubic(t) {
