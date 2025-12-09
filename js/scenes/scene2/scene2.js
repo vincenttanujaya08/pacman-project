@@ -24,15 +24,20 @@ export default class Scene2 extends BaseScene {
     this.ghostSpotlight = null;
     this.ghostPointLight = null;
     this.ghostRings = [];
+    this.arcadeModel = null; // ✅ NEW: Arcade machine
+    this.arcadeMixer = null; // ✅ NEW: Arcade animation mixer
+    this.arcadeOriginalMaterials = []; // ✅ NEW: Store original materials for glow effect
     this.ambientLight = null;
     this.sunLight = null;
     this.fillLight = null;
     this.setupMode = true;
     this.currentScale = {
       forest: config.scale.forest.x,
+      arcade: config.scale.arcade.x, // ✅ NEW: Arcade scale
     };
     this.infoElement = null;
     this.materialDarkness = 0.6; // ✅ BRIGHTER (was 0.15)
+    this.infoPanelVisible = true; // ✅ NEW: Info panel visibility toggle
 
     this.isApocalypseMode = false;
 
@@ -211,6 +216,88 @@ export default class Scene2 extends BaseScene {
       console.error("❌ Error loading ghost:", error);
     }
 
+    // ✅ Load Arcade Machine
+    try {
+      console.log("Loading arcade machine...");
+      const arcadeGltf = await this.loadModel(this.config.models.arcade);
+      this.arcadeModel = arcadeGltf.scene;
+
+      this.arcadeModel.position.set(
+        this.config.positions.arcade.x,
+        this.config.positions.arcade.y,
+        this.config.positions.arcade.z
+      );
+
+      this.arcadeModel.rotation.set(
+        this.config.rotations.arcade.x,
+        this.config.rotations.arcade.y,
+        this.config.rotations.arcade.z
+      );
+
+      this.arcadeModel.scale.set(
+        this.config.scale.arcade.x,
+        this.config.scale.arcade.y,
+        this.config.scale.arcade.z
+      );
+
+      this.arcadeModel.traverse((child) => {
+        if (child.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+
+          // ✅ Store original materials for glow effect
+          if (child.material) {
+            // Clone material to avoid affecting original
+            child.material = child.material.clone();
+
+            // ✅ Make arcade emissive (unlit - consistent brightness from any angle!)
+            if (child.material.map || child.material.emissiveMap) {
+              // If has texture, make it glow (screen + artwork)
+              child.material.emissive = new THREE.Color(0xffffff);
+              child.material.emissiveMap =
+                child.material.map || child.material.emissiveMap;
+              child.material.emissiveIntensity = 0.25; // ✅ LOWERED - not too bright in normal
+            } else {
+              // For non-textured parts, use material color as emissive
+              child.material.emissive = child.material.color.clone();
+              child.material.emissiveIntensity = 0.25; // ✅ LOWERED - subtle
+            }
+
+            // Store original emissive values
+            this.arcadeOriginalMaterials.push({
+              material: child.material,
+              originalEmissive: child.material.emissive.clone(),
+              originalEmissiveIntensity: child.material.emissiveIntensity,
+            });
+          }
+        }
+      });
+
+      this.arcadeModel.visible = true;
+
+      // ✅ Setup arcade animation
+      if (arcadeGltf.animations && arcadeGltf.animations.length > 0) {
+        this.arcadeMixer = new THREE.AnimationMixer(this.arcadeModel);
+        arcadeGltf.animations.forEach((clip) => {
+          const action = this.arcadeMixer.clipAction(clip);
+          action.play();
+        });
+        console.log(
+          `✅ Arcade animations playing (${arcadeGltf.animations.length} found)`
+        );
+      } else {
+        console.log("⚠️ No animations found in arcade model");
+      }
+
+      this.addObject(this.arcadeModel, "arcade");
+
+      console.log("✅ Arcade machine loaded (no spotlight - emissive only)");
+      console.log("💡 Press [ ] to scale arcade");
+      console.log("💡 Press ; ' to rotate arcade");
+    } catch (error) {
+      console.error("❌ Error loading arcade:", error);
+    }
+
     this.createInfoDisplay();
     console.log("✅ Scene 2 ready!");
     console.log("💡 Press [K] to toggle APOCALYPSE MODE (smooth transition)");
@@ -339,6 +426,7 @@ export default class Scene2 extends BaseScene {
     console.log(`   - 2 atom-style crossing rings (diagonal orbits)`);
   }
 
+  // ✅ NEW: Setup spotlight for arcade machine (wide cone with strong circular ground light!)
   // ✅ Store original colors for materials (no darkening by default)
   setupForestMaterials() {
     if (!this.forestModel) return;
@@ -415,15 +503,15 @@ export default class Scene2 extends BaseScene {
     this.apocalypseColors.ambient.color = new THREE.Color(
       apoc.lighting.ambient.color
     );
-    this.apocalypseColors.ambient.intensity = apoc.lighting.ambient.intensity;
+    this.apocalypseColors.ambient.intensity = 0.15; // ✅ DARKER for spotlight effect (was 0.4)
     this.apocalypseColors.sun.color = new THREE.Color(apoc.lighting.sun.color);
-    this.apocalypseColors.sun.intensity = apoc.lighting.sun.intensity;
+    this.apocalypseColors.sun.intensity = 0.3; // ✅ DARKER for spotlight effect (was 0.8)
     this.apocalypseColors.fill.color = new THREE.Color(
       apoc.lighting.fill.color
     );
-    this.apocalypseColors.fill.intensity = apoc.lighting.fill.intensity;
+    this.apocalypseColors.fill.intensity = 0.1; // ✅ DARKER for spotlight effect (was 0.3)
     this.apocalypseColors.fireflies = apoc.fireflies.color;
-    this.apocalypseColors.materialDarkness = apoc.materialDarkness;
+    this.apocalypseColors.materialDarkness = 0.25; // ✅ DARKER forest for spotlight effect (was 0.45)
   }
 
   // ✅ START SMOOTH TRANSITION
@@ -440,7 +528,7 @@ export default class Scene2 extends BaseScene {
 
     console.log(
       `🎬 Starting smooth transition to ${
-        this.isApocalypseMode ? "APOCALYPSE" : "NORMAL"
+        this.isApocalypseMode ? "✨ GOLDEN APOCALYPSE" : "🌲 NORMAL"
       } mode...`
     );
   }
@@ -540,7 +628,7 @@ export default class Scene2 extends BaseScene {
       this.isTransitioning = false;
       console.log(
         `✅ Transition complete! ${
-          this.isApocalypseMode ? "🔥 APOCALYPSE" : "🌲 NORMAL"
+          this.isApocalypseMode ? "✨ GOLDEN APOCALYPSE" : "🌲 NORMAL"
         } MODE`
       );
       this.updateInfo();
@@ -565,7 +653,15 @@ export default class Scene2 extends BaseScene {
       if (key === " ") {
         if (this.cinematic) {
           this.cinematic.start();
+          // Auto-hide info panel during cinematic
+          this.hideInfoPanel();
         }
+        return;
+      }
+
+      // ✅ I key to toggle info panel
+      if (key === "i" || key === "I") {
+        this.toggleInfoPanel();
         return;
       }
 
@@ -588,6 +684,26 @@ export default class Scene2 extends BaseScene {
       if (key === "2") {
         this.currentScale.forest += 1;
         this.updateForestScale();
+      }
+
+      // ✅ Arcade scale controls
+      if (key === "[") {
+        this.currentScale.arcade -= 0.1;
+        this.updateArcadeScale();
+      }
+      if (key === "]") {
+        this.currentScale.arcade += 0.1;
+        this.updateArcadeScale();
+      }
+
+      // ✅ Arcade rotation controls
+      if (key === ";") {
+        this.config.rotations.arcade.y -= 0.1;
+        this.updateArcadeRotation();
+      }
+      if (key === "'") {
+        this.config.rotations.arcade.y += 0.1;
+        this.updateArcadeRotation();
       }
 
       if (key === "3") {
@@ -672,6 +788,65 @@ export default class Scene2 extends BaseScene {
     }
   }
 
+  // ✅ NEW: Update arcade scale
+  updateArcadeScale() {
+    if (this.arcadeModel) {
+      this.arcadeModel.scale.set(
+        this.currentScale.arcade,
+        this.currentScale.arcade,
+        this.currentScale.arcade
+      );
+      console.log(`🎮 Arcade scale: ${this.currentScale.arcade.toFixed(2)}`);
+      this.updateInfo();
+    }
+  }
+
+  // ✅ NEW: Update arcade rotation
+  updateArcadeRotation() {
+    if (this.arcadeModel) {
+      this.arcadeModel.rotation.y = this.config.rotations.arcade.y;
+      console.log(
+        `🎮 Arcade rotation Y: ${this.config.rotations.arcade.y.toFixed(2)}`
+      );
+      this.updateInfo();
+    }
+  }
+
+  // ✅ NEW: Toggle info panel visibility
+  toggleInfoPanel() {
+    this.infoPanelVisible = !this.infoPanelVisible;
+
+    if (this.infoElement) {
+      this.infoElement.style.display = this.infoPanelVisible ? "block" : "none";
+    }
+
+    console.log(
+      `ℹ️ Info panel: ${this.infoPanelVisible ? "VISIBLE" : "HIDDEN"}`
+    );
+  }
+
+  // ✅ NEW: Hide info panel (for cinematic)
+  hideInfoPanel() {
+    this.infoPanelVisible = false;
+
+    if (this.infoElement) {
+      this.infoElement.style.display = "none";
+    }
+
+    console.log("ℹ️ Info panel auto-hidden (cinematic mode)");
+  }
+
+  // ✅ NEW: Show info panel
+  showInfoPanel() {
+    this.infoPanelVisible = true;
+
+    if (this.infoElement) {
+      this.infoElement.style.display = "block";
+    }
+
+    console.log("ℹ️ Info panel shown");
+  }
+
   createInfoDisplay() {
     this.infoElement = document.createElement("div");
     this.infoElement.id = "scene2-info";
@@ -708,7 +883,7 @@ export default class Scene2 extends BaseScene {
     const transitionStatus = this.isTransitioning
       ? `<span style="color: #ffaa00;">⚡ TRANSITIONING...</span>`
       : this.isApocalypseMode
-      ? "🔥 APOCALYPSE MODE"
+      ? "✨ GOLDEN APOCALYPSE MODE"
       : "🌲 NORMAL MODE";
 
     this.infoElement.innerHTML = `
@@ -716,6 +891,7 @@ export default class Scene2 extends BaseScene {
       <br>
       <strong>📦 MODEL</strong><br>
       Forest Scale: ${this.currentScale.forest.toFixed(2)}<br>
+      Arcade Scale: ${this.currentScale.arcade.toFixed(2)}<br>
       <br>
       <strong>🎨 MATERIAL</strong><br>
       Brightness: ${(this.materialDarkness * 100).toFixed(0)}%<br>
@@ -740,7 +916,7 @@ export default class Scene2 extends BaseScene {
         this.cinematic && this.cinematic.isPlaying ? "Playing" : "Idle"
       }<br>
       <br>
-      <strong>[SPACE] Cinematic | [K] Apocalypse | [G] Ghost | [x] Stop</strong>
+      <strong>[SPACE] Cinematic | [I] Toggle Info | [K] Apocalypse | [ ] Arcade Scale</strong>
     `;
   }
 
@@ -758,6 +934,11 @@ export default class Scene2 extends BaseScene {
     if (this.lightParticles) {
       console.log("Particles: enabled");
     }
+    console.log("");
+    console.log("🎮 ARCADE:");
+    console.log("  Position:", this.config.positions.arcade);
+    console.log("  Scale:", this.currentScale.arcade.toFixed(2));
+    console.log("  Rotation Y:", this.config.rotations.arcade.y.toFixed(2));
     console.log("========================================");
   }
 
@@ -884,10 +1065,11 @@ export default class Scene2 extends BaseScene {
     console.log("🌲 Scene 2 entered! (BRIGHTER MODE)");
     console.log("💡 Ghost is visible - press [SPACE] to start CINEMATIC");
     console.log(
-      "   ⚡ Cinematic will auto-trigger APOCALYPSE mode during run!"
+      "   ⚡ Cinematic will auto-trigger GOLDEN APOCALYPSE mode during run!"
     );
+    console.log("💡 Press [I] to toggle info panel (hide/show)");
     console.log(
-      "💡 Press [K] to manually toggle APOCALYPSE MODE (smooth transition)"
+      "💡 Press [K] to manually toggle GOLDEN APOCALYPSE MODE (smooth transition)"
     );
     console.log("💡 Press [G] to start ghost animation");
   }
@@ -906,7 +1088,13 @@ export default class Scene2 extends BaseScene {
 
     // ✅ Update cinematic first (takes priority over manual camera)
     if (this.cinematic) {
+      const wasPlaying = this.cinematic.isPlaying;
       this.cinematic.update(deltaTime);
+
+      // ✅ Auto-show info panel when cinematic ends
+      if (wasPlaying && !this.cinematic.isPlaying && !this.infoPanelVisible) {
+        this.showInfoPanel();
+      }
     }
 
     // Only update manual camera if cinematic not playing
@@ -916,6 +1104,11 @@ export default class Scene2 extends BaseScene {
 
     if (this.ghostMixer) {
       this.ghostMixer.update(deltaTime / 1000);
+    }
+
+    // ✅ Update arcade animation
+    if (this.arcadeMixer) {
+      this.arcadeMixer.update(deltaTime / 1000);
     }
 
     if (this.ghostController) {
@@ -976,6 +1169,15 @@ export default class Scene2 extends BaseScene {
       this.ghostMixer.stopAllAction();
       this.ghostMixer = null;
     }
+
+    // ✅ Dispose arcade resources
+    if (this.arcadeMixer) {
+      this.arcadeMixer.stopAllAction();
+      this.arcadeMixer = null;
+    }
+
+    // Clear arcade material storage
+    this.arcadeOriginalMaterials = [];
 
     if (this.ghostSpotlight) {
       this.scene.remove(this.ghostSpotlight);

@@ -323,7 +323,7 @@ export default class Scene2Cinematic {
     // ✅ AUTO TRIGGER APOCALYPSE MODE (at start of run_forward step)
     if (step.triggerApocalypse && !this.apocalypseTriggered && this.scene2) {
       this.apocalypseTriggered = true;
-      console.log("🔥 Auto-triggering APOCALYPSE MODE!");
+      console.log("✨ Auto-triggering GOLDEN APOCALYPSE MODE!");
 
       // Only trigger if not already in apocalypse mode
       if (!this.scene2.isApocalypseMode) {

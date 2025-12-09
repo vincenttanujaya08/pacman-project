@@ -6,22 +6,26 @@ export default {
   models: {
     forest: "assets/models/forest.glb",
     ghost: "assets/models/red_ghost.glb", // ✅ Ghost model
+    arcade: "assets/models/arcade.glb", // ✅ Arcade machine
   },
 
   // Initial scales
   scale: {
     forest: { x: 100, y: 100, z: 100 },
     ghost: { x: 3, y: 3, z: 3 }, // ✅ Ghost scale
+    arcade: { x: 0.2, y: 0.2, z: 0.2 }, // ✅ Arcade scale (adjusted)
   },
 
   // Initial positions
   positions: {
     forest: { x: 0, y: 0, z: 0 },
+    arcade: { x: 6.65, y: 7541.2, z: 220.71 }, // ✅ Camera position (adjusted)
   },
 
   // Initial rotations
   rotations: {
     forest: { x: 0, y: 0, z: 0 },
+    arcade: { x: 0, y: Math.PI + 0.1, z: 0 }, // ✅ Arcade rotation (adjusted)
   },
 
   // Lighting - ✅ MUCH BRIGHTER FOR NORMAL MODE
@@ -50,7 +54,7 @@ export default {
 
   // Camera
   camera: {
-    initial: { x: -7.29, y: 7542.8, z: 108.65 }, // ✅ Absolute start position
+    initial: { x: -8.84, y: 7542.8, z: 97.28 }, // ✅ Absolute start position
     rotation: { yaw: 0.136, pitch: 0.058 },
     lookAt: { x: -8.84, y: 7542.8, z: 100 }, // Look forward
   },
@@ -75,30 +79,30 @@ export default {
     rotation: { x: 0, y: -Math.PI / 2, z: 0 }, // Initial rotation
   },
 
-  // ✅ APOCALYPSE MODE SETTINGS (for smooth transition)
+  // ✅ GOLDEN APOCALYPSE MODE SETTINGS (for smooth transition)
   apocalypse: {
     background: {
       color: 0x000000, // ✅ Pure black sky
     },
     fog: {
-      color: 0x1a0808, // ✅ Dark red mist
+      color: 0x1a1500, // ✅ Dark GOLD mist (changed from red 0x1a0808)
     },
     lighting: {
       ambient: {
-        color: 0x3a2a2a, // ✅ Slight red tint
+        color: 0x3a3010, // ✅ GOLDEN tint (changed from red 0x3a2a2a)
         intensity: 0.4, // ✅ Slightly dimmer
       },
       sun: {
-        color: 0x8a6a70, // ✅ Reddish dim light
+        color: 0x8a7a50, // ✅ GOLDEN dim light (changed from red 0x8a6a70)
         intensity: 0.8,
       },
       fill: {
-        color: 0x3a2a30,
+        color: 0x3a3020, // ✅ Warm GOLDEN fill (changed from red 0x3a2a30)
         intensity: 0.3,
       },
     },
     fireflies: {
-      color: 0xff2020, // ✅ Red fireflies
+      color: 0xffd700, // ✅ GOLD fireflies (changed from red 0xff2020) ✨
     },
     materialDarkness: 0.45, // ✅ Slightly darker forest (was 0.6, now 0.45)
   },
