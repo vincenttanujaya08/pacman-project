@@ -75,7 +75,7 @@ export default {
 
   // ✅ Ghost configuration (absolute position)
   ghost: {
-    position: { x: 39.16, y: 7538.8, z: 109.97 }, // Absolute spawn position
+    position: { x: 38.9, y: 7538.8, z: 109.97 }, // Absolute spawn position
     rotation: { x: 0, y: -Math.PI / 2, z: 0 }, // Initial rotation
   },
 

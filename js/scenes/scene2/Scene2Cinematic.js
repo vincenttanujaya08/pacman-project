@@ -1,7 +1,6 @@
 // Scene2Cinematic.js
-// ✅ WITH SMOOTH GHOST TRANSITIONS:
-// - Ghost fades OUT when cinematic starts
-// - Ghost fades IN during turn_right step (creepy reveal!)
+// ✅ WITH SMOOTH GHOST TRANSITIONS + FIXED CAMERA SEQUENCE
+// ✅ Camera follows: run_forward → Image 1 → Image 2 → Image 3 → Pass through arcade screen
 
 export default class Scene2Cinematic {
   constructor(
@@ -12,7 +11,7 @@ export default class Scene2Cinematic {
     ghostSpotlight,
     ghostPointLight,
     ghostRings,
-    scene2Instance // ✅ NEW: Reference to Scene2 for apocalypse trigger
+    scene2Instance
   ) {
     this.camera = camera;
     this.cameraMode = cameraMode;
@@ -21,11 +20,14 @@ export default class Scene2Cinematic {
     this.ghostSpotlight = ghostSpotlight;
     this.ghostPointLight = ghostPointLight;
     this.ghostRings = ghostRings;
-    this.scene2 = scene2Instance; // ✅ Store reference
+    this.scene2 = scene2Instance;
 
     this.isPlaying = false;
     this.currentStep = 0;
     this.stepElapsed = 0;
+
+    // ✅ Ghost chase state
+    this.ghostStarted = false;
 
     // LookBack fix
     this.hasLookedBack = false;
@@ -38,7 +40,7 @@ export default class Scene2Cinematic {
     this.zoomAmount = 1;
     this.zoomTarget = 1;
 
-    // Keyframes
+    // ✅ UPDATED KEYFRAMES with correct ending positions from images
     this.sequence = [
       {
         type: "move_forward",
@@ -69,7 +71,7 @@ export default class Scene2Cinematic {
         toYaw: 1.28,
         fromPitch: 0.004,
         toPitch: -0.008,
-        ghostFadeInAt: 1250, // ✅ Ghost fades in at 50% turn (middle of turn)
+        ghostFadeInAt: 1250, // Ghost fades in at 50% turn (middle of turn)
       },
       {
         type: "snap_back",
@@ -85,14 +87,48 @@ export default class Scene2Cinematic {
         type: "run_forward",
         duration: 8000,
         fromPos: { x: -7.29, y: 7542.8, z: 115 },
-        toPos: { x: 6.81, y: 7543.89, z: 218.99 },
+        toPos: { x: 5.94, y: 7549.33, z: 215.31 }, // ✅ FIXED: End at Image 1 position
         fromYaw: 0.136,
-        toYaw: 0.104,
+        toYaw: 0.119,
         fromPitch: 0.058,
-        toPitch: 0.276,
-        lookBackAt: 4000,
-        lookBackDuration: 1200,
-        triggerApocalypse: true, // ✅ Auto trigger apocalypse mode when this step starts!
+        toPitch: -0.316,
+        lookBackAt: 3000,
+        lookBackDuration: 3000,
+        triggerApocalypse: true, // Auto trigger apocalypse mode
+      },
+      // ✅ NEW STEP 1: Smooth move to Image 2 position
+      {
+        type: "approach_arcade",
+        duration: 2500,
+        fromPos: { x: 5.94, y: 7549.33, z: 215.31 },
+        toPos: { x: 6.57, y: 7548.43, z: 218.49 }, // Image 2
+        fromYaw: 0.119,
+        toYaw: 0.049,
+        fromPitch: -0.316,
+        toPitch: 0.082,
+      },
+      // ✅ NEW STEP 2: Smooth move to Image 3 position
+      {
+        type: "final_approach",
+        duration: 2000,
+        fromPos: { x: 6.57, y: 7548.43, z: 218.49 },
+        toPos: { x: 6.38, y: 7550.5, z: 218.47 }, // Image 3
+        fromYaw: 0.049,
+        toYaw: 0.079,
+        fromPitch: 0.082,
+        toPitch: -0.612,
+      },
+      // ✅ NEW STEP 3: Pass through arcade screen (nembus layar!)
+      {
+        type: "pass_through",
+        duration: 1500,
+        fromPos: { x: 6.38, y: 7550.5, z: 218.47 },
+        toPos: { x: 6.53, y: 7545.5, z: 226 }, // Go through arcade screen
+        fromYaw: 0.079,
+        toYaw: 0.112,
+        fromPitch: -0.612,
+        toPitch: -0.4,
+        // triggerTransition: true, // ✅ Commented out - no scene 3 yet
       },
     ];
 
@@ -100,10 +136,10 @@ export default class Scene2Cinematic {
     this.ghostFadeOpacity = 0;
     this.ghostFading = false;
     this.ghostFadeElapsed = 0;
-    this.ghostFadeDuration = 1500; // ✅ 1.5 seconds for smooth reveal
-    this.ghostFadeStarted = false; // ✅ NEW: Prevent double fade-in
+    this.ghostFadeDuration = 1500;
+    this.ghostFadeStarted = false;
 
-    // ✅ Apocalypse trigger
+    // Apocalypse trigger
     this.apocalypseTriggered = false;
 
     this.isLookingBack = false;
@@ -121,12 +157,13 @@ export default class Scene2Cinematic {
     this.stepElapsed = 0;
     this.ghostFadeOpacity = 0;
     this.ghostFading = false;
-    this.ghostFadeStarted = false; // ✅ Reset fade flag
-    this.apocalypseTriggered = false; // ✅ Reset apocalypse flag
+    this.ghostFadeStarted = false;
+    this.apocalypseTriggered = false;
     this.isLookingBack = false;
     this.hasLookedBack = false;
+    this.ghostStarted = false; // ✅ Reset ghost chase
 
-    // ✅ FADE OUT GHOST FIRST (smooth disappear)
+    // Fade out ghost first
     console.log("👻 Fading out ghost...");
     this.fadeOutGhost();
 
@@ -146,19 +183,17 @@ export default class Scene2Cinematic {
     }
   }
 
-  // ✅ NEW: Fade out ghost smoothly at cinematic start
   fadeOutGhost() {
     if (!this.ghostModel) return;
 
-    const fadeOutDuration = 500; // 0.5 second
+    const fadeOutDuration = 500;
     let elapsed = 0;
 
     const fadeInterval = setInterval(() => {
-      elapsed += 16; // ~60fps
+      elapsed += 16;
       const progress = Math.min(elapsed / fadeOutDuration, 1);
       const opacity = 1 - progress;
 
-      // Apply to ghost
       if (this.ghostModel) {
         this.ghostModel.traverse((child) => {
           if (child.isMesh && child.material) {
@@ -168,7 +203,6 @@ export default class Scene2Cinematic {
         });
       }
 
-      // Apply to lights
       if (this.ghostSpotlight) {
         this.ghostSpotlight.intensity = 3.0 * opacity;
       }
@@ -176,16 +210,13 @@ export default class Scene2Cinematic {
         this.ghostPointLight.intensity = 2.0 * opacity;
       }
 
-      // Apply to rings
       this.ghostRings.forEach((ring) => {
         ring.material.opacity = 0.45 * opacity;
       });
 
-      // Complete
       if (progress >= 1) {
         clearInterval(fadeInterval);
 
-        // Hide completely
         if (this.ghostModel) this.ghostModel.visible = false;
         if (this.ghostSpotlight) this.ghostSpotlight.visible = false;
         if (this.ghostPointLight) this.ghostPointLight.visible = false;
@@ -198,6 +229,7 @@ export default class Scene2Cinematic {
 
   stop() {
     this.isPlaying = false;
+    console.log("🎬 Cinematic stopped");
   }
 
   update(deltaTime) {
@@ -222,12 +254,9 @@ export default class Scene2Cinematic {
       z: this.lerp(step.fromPos.z, step.toPos.z, easedT),
     };
 
-    // ✅ Breathing sway + bounce (ONLY during run_forward for realism)
+    // Breathing sway + bounce (ONLY during run_forward for realism)
     if (step.type === "run_forward") {
-      // Breathing sway
       pos.y += Math.sin(performance.now() * 0.002) * this.breathAmp;
-
-      // Running step bounce
       const variation = Math.sin(easedT * Math.PI * 4) * 0.3;
       pos.y += variation;
     }
@@ -299,18 +328,17 @@ export default class Scene2Cinematic {
     // CAMERA EFFECTS
     this.applyCameraEffects(deltaTime, yaw, pitch);
 
-    // ✅ GHOST FADE IN (during turn_right step at 50% - middle of turn)
+    // GHOST FADE IN (during turn_right step at 50%)
     if (step.ghostFadeInAt && !this.ghostFading && !this.ghostFadeStarted) {
       if (this.stepElapsed >= step.ghostFadeInAt) {
         this.ghostFading = true;
-        this.ghostFadeStarted = true; // ✅ Mark as started
+        this.ghostFadeStarted = true;
         this.ghostFadeElapsed = 0;
 
-        // Make visible but transparent
         if (this.ghostModel) this.ghostModel.visible = true;
         if (this.ghostSpotlight) this.ghostSpotlight.visible = true;
         if (this.ghostPointLight) this.ghostPointLight.visible = true;
-        this.ghostRings.forEach((r) => (r.visible = true));
+        // this.ghostRings.forEach((r) => (r.visible = true));
 
         console.log("👻 Ghost fading in at 50% turn (creepy reveal)...");
       }
@@ -318,14 +346,29 @@ export default class Scene2Cinematic {
 
     if (this.ghostFading) {
       this.updateGhostFadeIn(deltaTime);
+
+      // ✅ START GHOST CHASE after fade in complete
+      if (
+        !this.ghostStarted &&
+        this.ghostFadeOpacity >= 0.99 &&
+        this.ghostController
+      ) {
+        this.ghostStarted = true;
+        console.log("👻 Ghost starting chase sequence!");
+        this.ghostController.startChaseSequence();
+      }
     }
 
-    // ✅ AUTO TRIGGER APOCALYPSE MODE (at start of run_forward step)
+    // ✅ Update ghost movement
+    if (this.ghostController && this.ghostController.isAnimating) {
+      this.ghostController.update(deltaTime);
+    }
+
+    // AUTO TRIGGER APOCALYPSE MODE
     if (step.triggerApocalypse && !this.apocalypseTriggered && this.scene2) {
       this.apocalypseTriggered = true;
       console.log("✨ Auto-triggering GOLDEN APOCALYPSE MODE!");
 
-      // Only trigger if not already in apocalypse mode
       if (!this.scene2.isApocalypseMode) {
         this.scene2.toggleApocalypseMode();
       }
@@ -335,6 +378,17 @@ export default class Scene2Cinematic {
     if (t >= 1) {
       this.currentStep++;
       this.stepElapsed = 0;
+
+      // ✅ Log progress
+      console.log(
+        `📹 Cinematic step ${this.currentStep}/${this.sequence.length} complete`
+      );
+
+      // ✅ Check if we finished pass_through step
+      if (step.type === "pass_through") {
+        console.log("✅ Passed through arcade screen!");
+        console.log("💡 Scene 3 not implemented yet - cinematic will end here");
+      }
     }
   }
 
@@ -342,7 +396,6 @@ export default class Scene2Cinematic {
     // Smooth interpolation zoom
     this.zoomAmount += (this.zoomTarget - this.zoomAmount) * 0.05;
 
-    // ✅ NO SHAKE/JITTER for early steps - only during run_forward!
     const step = this.sequence[this.currentStep];
     const isRunningStep = step && step.type === "run_forward";
 
@@ -354,10 +407,10 @@ export default class Scene2Cinematic {
       ? (Math.random() - 0.5) * this.noiseIntensity
       : 0;
 
-    // Shake (extra during lookBack, subtle during run)
+    // Shake
     let shake = 0;
     if (isRunningStep) {
-      shake = this.isLookingBack ? 0.03 : 0.003; // ✅ Reduced from 0.005 to 0.003
+      shake = this.isLookingBack ? 0.03 : 0.003;
     }
 
     const shakeYaw = (Math.random() - 0.5) * shake;
@@ -400,7 +453,6 @@ export default class Scene2Cinematic {
     }
   }
 
-  // ✅ UPDATE: Ghost fade IN (smooth reveal)
   updateGhostFadeIn(dt) {
     this.ghostFadeElapsed += dt;
 
@@ -409,7 +461,6 @@ export default class Scene2Cinematic {
 
     this.ghostFadeOpacity = e;
 
-    // Apply to ghost
     if (this.ghostModel) {
       this.ghostModel.traverse((child) => {
         if (child.isMesh && child.material) {
@@ -419,11 +470,9 @@ export default class Scene2Cinematic {
       });
     }
 
-    // Apply to lights
     if (this.ghostSpotlight) this.ghostSpotlight.intensity = 3.0 * e;
     if (this.ghostPointLight) this.ghostPointLight.intensity = 2.0 * e;
 
-    // Apply to rings
     this.ghostRings.forEach((r) => (r.material.opacity = 0.45 * e));
 
     if (fadeT >= 1) {
