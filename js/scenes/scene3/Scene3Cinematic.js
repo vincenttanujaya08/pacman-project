@@ -400,7 +400,33 @@ export default class Scene3Cinematic {
     if (t >= 1) {
       this.mazeModel.visible = false;
       console.log("🌑 Maze faded out - Full black screen");
+      console.log("🎬 Transitioning to Scene 4...");
+
+      // Trigger transition to Scene 4
+      setTimeout(() => {
+        this.transitionToScene4();
+      }, 500);
     }
+  }
+
+  // ADD THIS NEW METHOD AFTER updateFadeMaze:
+
+  transitionToScene4() {
+    const app = window.app;
+    if (!app || !app.sceneManager) {
+      console.error("❌ App or SceneManager not found!");
+      return;
+    }
+
+    const scene4 = app.sceneManager.getScene("scene4");
+
+    if (!scene4) {
+      console.warn("⚠️ Scene 4 not found. Add it to main.js first!");
+      return;
+    }
+
+    console.log("🚀 Switching to Scene 4...");
+    app.sceneManager.switchTo("scene4", "instant");
   }
 
   // ========== TEXT CREATION ==========

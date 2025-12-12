@@ -207,7 +207,17 @@ class App {
     const scene3 = new Scene3("scene3", this.renderer, this.camera);
     await this.sceneManager.addScene("scene3", scene3);
 
+    this.updateLoadingProgress(80, "Loading scene 4...");
+
+    // Load Scene 4
+    const Scene4 = await import("./scenes/scene4/Scene4.js").then(
+      (m) => m.default
+    );
+    const scene4 = new Scene4("scene4", this.renderer, this.camera);
+    await this.sceneManager.addScene("scene4", scene4);
+
     this.updateLoadingProgress(100, "Ready!");
+    console.log("All scenes loaded successfully!");
 
     // Start with opening scene
     await this.sceneManager.switchTo("opening", "instant");
