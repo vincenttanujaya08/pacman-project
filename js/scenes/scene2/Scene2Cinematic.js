@@ -1,6 +1,5 @@
-// Scene2Cinematic.js
-// ✅ WITH SMOOTH GHOST TRANSITIONS + FIXED CAMERA SEQUENCE
-// ✅ Camera follows: run_forward → Image 1 → Image 2 → Image 3 → Pass through arcade screen
+// js/scenes/scene2/Scene2Cinematic.js
+// ✅ FULL FILE WITH FADE OUT TO SCENE3
 
 export default class Scene2Cinematic {
   constructor(
@@ -39,6 +38,12 @@ export default class Scene2Cinematic {
     this.breathAmp = 0.02;
     this.zoomAmount = 1;
     this.zoomTarget = 1;
+
+    // ✅ Fade out to Scene3 state
+    this.isFadingOut = false;
+    this.fadeOutElapsed = 0;
+    this.fadeOutDuration = 1500; // 1.5 seconds
+    this.fadeOutComplete = false;
 
     // ✅ UPDATED KEYFRAMES with correct ending positions from images
     this.sequence = [
@@ -87,48 +92,44 @@ export default class Scene2Cinematic {
         type: "run_forward",
         duration: 8000,
         fromPos: { x: -7.29, y: 7542.8, z: 115 },
-        toPos: { x: 5.94, y: 7549.33, z: 215.31 }, // ✅ FIXED: End at Image 1 position
+        toPos: { x: 5.94, y: 7549.33, z: 215.31 },
         fromYaw: 0.136,
         toYaw: 0.119,
         fromPitch: 0.058,
         toPitch: -0.316,
         lookBackAt: 3000,
         lookBackDuration: 3000,
-        triggerApocalypse: true, // Auto trigger apocalypse mode
+        triggerApocalypse: true,
       },
-      // ✅ NEW STEP 1: Smooth move to Image 2 position
       {
         type: "approach_arcade",
         duration: 2500,
         fromPos: { x: 5.94, y: 7549.33, z: 215.31 },
-        toPos: { x: 6.57, y: 7548.43, z: 218.49 }, // Image 2
+        toPos: { x: 6.57, y: 7548.43, z: 218.49 },
         fromYaw: 0.119,
         toYaw: 0.049,
         fromPitch: -0.316,
         toPitch: 0.082,
       },
-      // ✅ NEW STEP 2: Smooth move to Image 3 position
       {
         type: "final_approach",
         duration: 2000,
         fromPos: { x: 6.57, y: 7548.43, z: 218.49 },
-        toPos: { x: 6.38, y: 7550.5, z: 218.47 }, // Image 3
+        toPos: { x: 6.38, y: 7550.5, z: 218.47 },
         fromYaw: 0.049,
         toYaw: 0.079,
         fromPitch: 0.082,
         toPitch: -0.612,
       },
-      // ✅ NEW STEP 3: Pass through arcade screen (nembus layar!)
       {
         type: "pass_through",
         duration: 1500,
         fromPos: { x: 6.38, y: 7550.5, z: 218.47 },
-        toPos: { x: 6.53, y: 7545.5, z: 226 }, // Go through arcade screen
+        toPos: { x: 6.53, y: 7545.5, z: 226 },
         fromYaw: 0.079,
         toYaw: 0.112,
         fromPitch: -0.612,
         toPitch: -0.4,
-        // triggerTransition: true, // ✅ Commented out - no scene 3 yet
       },
     ];
 
@@ -161,7 +162,12 @@ export default class Scene2Cinematic {
     this.apocalypseTriggered = false;
     this.isLookingBack = false;
     this.hasLookedBack = false;
-    this.ghostStarted = false; // ✅ Reset ghost chase
+    this.ghostStarted = false;
+
+    // ✅ Reset fade out state
+    this.isFadingOut = false;
+    this.fadeOutElapsed = 0;
+    this.fadeOutComplete = false;
 
     // Fade out ghost first
     console.log("👻 Fading out ghost...");
@@ -230,6 +236,147 @@ export default class Scene2Cinematic {
   stop() {
     this.isPlaying = false;
     console.log("🎬 Cinematic stopped");
+  }
+
+  // ✅ NEW: Start fade out to Scene3
+  startFadeOutToScene3() {
+    if (this.isFadingOut || this.fadeOutComplete) return;
+
+    console.log("🌑 Starting fade out to Scene3...");
+    this.isFadingOut = true;
+    this.fadeOutElapsed = 0;
+
+    // Make objects transparent for fade
+    if (this.scene2.forestModel) {
+      this.scene2.forestModel.traverse((child) => {
+        if (child.isMesh && child.material) {
+          child.material.transparent = true;
+        }
+      });
+    }
+
+    if (this.scene2.arcadeModel) {
+      this.scene2.arcadeModel.traverse((child) => {
+        if (child.isMesh && child.material) {
+          child.material.transparent = true;
+        }
+      });
+    }
+
+    if (this.ghostModel) {
+      this.ghostModel.traverse((child) => {
+        if (child.isMesh && child.material) {
+          child.material.transparent = true;
+        }
+      });
+    }
+  }
+
+  // ✅ NEW: Update fade out
+  updateFadeOut(deltaTime) {
+    if (!this.isFadingOut) return;
+
+    this.fadeOutElapsed += deltaTime;
+    const progress = Math.min(this.fadeOutElapsed / this.fadeOutDuration, 1);
+    const opacity = 1 - this.easeInOutCubic(progress);
+
+    // Fade out forest
+    if (this.scene2.forestModel) {
+      this.scene2.forestModel.traverse((child) => {
+        if (child.isMesh && child.material) {
+          child.material.opacity = opacity;
+        }
+      });
+    }
+
+    // Fade out arcade
+    if (this.scene2.arcadeModel) {
+      this.scene2.arcadeModel.traverse((child) => {
+        if (child.isMesh && child.material) {
+          child.material.opacity = opacity;
+        }
+      });
+    }
+
+    // Fade out ghost
+    if (this.ghostModel) {
+      this.ghostModel.traverse((child) => {
+        if (child.isMesh && child.material) {
+          child.material.opacity = opacity;
+        }
+      });
+    }
+
+    // Fade out ghost lights
+    if (this.ghostSpotlight) {
+      this.ghostSpotlight.intensity = 3.0 * opacity;
+    }
+    if (this.ghostPointLight) {
+      this.ghostPointLight.intensity = 2.0 * opacity;
+    }
+
+    // Fade out ghost rings
+    this.ghostRings.forEach((ring) => {
+      ring.material.opacity = 0.45 * opacity;
+    });
+
+    // Fade out scene lights
+    if (this.scene2.ambientLight) {
+      this.scene2.ambientLight.intensity =
+        this.scene2.apocalypseColors.ambient.intensity * opacity;
+    }
+    if (this.scene2.sunLight) {
+      this.scene2.sunLight.intensity =
+        this.scene2.apocalypseColors.sun.intensity * opacity;
+    }
+    if (this.scene2.fillLight) {
+      this.scene2.fillLight.intensity =
+        this.scene2.apocalypseColors.fill.intensity * opacity;
+    }
+
+    // Fade out fireflies
+    if (this.scene2.lightParticles) {
+      this.scene2.lightParticles.fireflies.forEach((f) => {
+        f.material.opacity = f.userData.twinkle.max * opacity;
+      });
+    }
+
+    // Fade complete
+    if (progress >= 1) {
+      this.fadeOutComplete = true;
+      this.isFadingOut = false;
+
+      console.log("✅ Fade out complete! Transitioning to Scene3...");
+
+      // Hide everything completely
+      if (this.scene2.forestModel) this.scene2.forestModel.visible = false;
+      if (this.scene2.arcadeModel) this.scene2.arcadeModel.visible = false;
+      if (this.ghostModel) this.ghostModel.visible = false;
+      if (this.ghostSpotlight) this.ghostSpotlight.visible = false;
+      if (this.ghostPointLight) this.ghostPointLight.visible = false;
+      this.ghostRings.forEach((r) => (r.visible = false));
+
+      if (this.scene2.lightParticles) {
+        this.scene2.lightParticles.fireflies.forEach(
+          (f) => (f.visible = false)
+        );
+      }
+
+      // Transition to Scene3
+      setTimeout(() => {
+        const app = window.app;
+        if (app && app.sceneManager) {
+          const scene3 = app.sceneManager.getScene("scene3");
+
+          if (scene3) {
+            console.log("🎬 Switching to Scene3...");
+            app.sceneManager.switchTo("scene3", "instant");
+          } else {
+            console.warn("⚠️ Scene3 not found! Add it to main.js");
+          }
+        }
+      }, 200); // Small delay for smooth transition
+    }
   }
 
   update(deltaTime) {
@@ -338,7 +485,6 @@ export default class Scene2Cinematic {
         if (this.ghostModel) this.ghostModel.visible = true;
         if (this.ghostSpotlight) this.ghostSpotlight.visible = true;
         if (this.ghostPointLight) this.ghostPointLight.visible = true;
-        // this.ghostRings.forEach((r) => (r.visible = true));
 
         console.log("👻 Ghost fading in at 50% turn (creepy reveal)...");
       }
@@ -374,8 +520,21 @@ export default class Scene2Cinematic {
       }
     }
 
+    // ✅ NEW: Check if we need to start fade out (at end of pass_through step)
+    if (
+      step.type === "pass_through" &&
+      t >= 1 &&
+      !this.isFadingOut &&
+      !this.fadeOutComplete
+    ) {
+      this.startFadeOutToScene3();
+    }
+
+    // ✅ NEW: Update fade out
+    this.updateFadeOut(deltaTime);
+
     // NEXT step
-    if (t >= 1) {
+    if (t >= 1 && !this.isFadingOut) {
       this.currentStep++;
       this.stepElapsed = 0;
 
@@ -387,7 +546,7 @@ export default class Scene2Cinematic {
       // ✅ Check if we finished pass_through step
       if (step.type === "pass_through") {
         console.log("✅ Passed through arcade screen!");
-        console.log("💡 Scene 3 not implemented yet - cinematic will end here");
+        console.log("🌑 Starting fade out to Scene3...");
       }
     }
   }

@@ -168,6 +168,11 @@ class App {
 
   // ========== SCENE LOADING ==========
 
+  // js/main.js
+  // ✅ UPDATE: Add Scene3 loading
+
+  // ... existing code ...
+
   async loadScenes() {
     console.log("Loading scenes...");
 
@@ -184,14 +189,23 @@ class App {
     );
     await this.sceneManager.addScene("opening", openingScene);
 
-    this.updateLoadingProgress(50, "Loading scene 2...");
+    this.updateLoadingProgress(33, "Loading scene 2...");
 
-    // ✅ Load Scene 2
+    // Load Scene 2
     const Scene2 = await import("./scenes/scene2/scene2.js").then(
       (m) => m.default
     );
     const scene2 = new Scene2("scene2", this.renderer, this.camera);
     await this.sceneManager.addScene("scene2", scene2);
+
+    this.updateLoadingProgress(66, "Loading scene 3...");
+
+    // ✅ Load Scene 3
+    const Scene3 = await import("./scenes/scene3/Scene3.js").then(
+      (m) => m.default
+    );
+    const scene3 = new Scene3("scene3", this.renderer, this.camera);
+    await this.sceneManager.addScene("scene3", scene3);
 
     this.updateLoadingProgress(100, "Ready!");
 
@@ -293,6 +307,13 @@ class App {
     this.sceneManager.render();
   }
 
+  // js/main.js - updatePositionDisplay()
+
+  // js/main.js
+  // ✅ UPDATE: Fix updatePositionDisplay for Scene3
+
+  // ... existing code ...
+
   updatePositionDisplay() {
     const pos = this.camera.position;
 
@@ -304,7 +325,7 @@ class App {
     if (posYElem) posYElem.textContent = pos.y.toFixed(2);
     if (posZElem) posZElem.textContent = pos.z.toFixed(2);
 
-    // ✅ Show yaw & pitch rotation (for FPS mode adjustment)
+    // ✅ Show yaw & pitch rotation
     const rotYawElem = document.getElementById("rotYaw");
     const rotPitchElem = document.getElementById("rotPitch");
 
@@ -321,12 +342,23 @@ class App {
         const cameraMode = currentScene.cameraMode;
         rotYawElem.textContent = cameraMode.fps.yaw.toFixed(3);
         rotPitchElem.textContent = cameraMode.fps.pitch.toFixed(3);
+      }
+      // ✅ If in Scene 3 with debug FPS mode, show rotation
+      else if (
+        currentScene &&
+        currentScene.name === "scene3" &&
+        currentScene.debugFPSMode
+      ) {
+        rotYawElem.textContent = currentScene.yaw.toFixed(3);
+        rotPitchElem.textContent = currentScene.pitch.toFixed(3);
       } else {
         rotYawElem.textContent = "-";
         rotPitchElem.textContent = "-";
       }
     }
   }
+
+  // ... rest of existing code ...
 
   // ========== CLEANUP ==========
 
